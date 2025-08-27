@@ -1,18 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  TouchableOpacity,
+  Alert,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, User, Info, Shield, Trash2, BookOpen, Moon, Sun, Crown, Star, Download } from 'lucide-react-native';
-import { UserSettings } from '@/types';
+import {
+  Bell,
+  User,
+  Info,
+  Shield,
+  Trash2,
+  BookOpen,
+  Moon,
+  Sun,
+  Crown,
+  Star,
+  Download,
+} from 'lucide-react-native';
+import {
+  UserSettings,
+  FastingSession,
+  HealthMetrics,
+  JournalEntry,
+} from '@/types';
 import { storageService } from '@/utils/storage';
 import { notificationService } from '@/utils/notifications';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PremiumBadge } from '@/components/PremiumBadge';
 import { PremiumUpgradeModal } from '@/components/PremiumUpgradeModal';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const { colors, toggleDarkMode } = useTheme();
   const [settings, setSettings] = useState<UserSettings>({
-    preferredMethod: { id: '16_8', name: '16:8', fastingHours: 16, eatingHours: 8, description: '' },
+    preferredMethod: {
+      id: '16_8',
+      name: '16:8',
+      fastingHours: 16,
+      eatingHours: 8,
+      description: '',
+    },
     notificationsEnabled: true,
     fastingStartNotification: true,
     fastingEndNotification: true,
@@ -61,23 +95,24 @@ export default function SettingsScreen() {
   const toggleNotifications = async (enabled: boolean) => {
     if (enabled) {
       let hasPermission = await notificationService.requestPermissions();
-      
+
       // Also try web notifications if on web platform
       if (!hasPermission && Platform.OS === 'web') {
-        hasPermission = await notificationService.requestWebNotificationPermission();
+        hasPermission =
+          await notificationService.requestWebNotificationPermission();
       }
-      
+
       if (!hasPermission) {
         Alert.alert(
           'Permission Required',
-          Platform.OS === 'web' 
+          Platform.OS === 'web'
             ? 'Please allow notifications in your browser to receive fasting reminders.'
             : 'Please enable notifications in your device settings to receive fasting reminders.'
         );
         return;
       }
     }
-    
+
     const newSettings = { ...settings, notificationsEnabled: enabled };
     await saveSettings(newSettings);
   };
@@ -133,74 +168,164 @@ export default function SettingsScreen() {
     await saveSettings(newSettings);
   };
 
+  const escapeCsvField = (field: any): string => {
+    if (field === null || field === undefined) {
+      return '';
+    }
+    const stringField = String(field);
+    if (
+      stringField.includes(',') ||
+      stringField.includes('"') ||
+      stringField.includes('\n')
+    ) {
+      const escapedField = stringField.replace(/"/g, '""');
+      return `"${escapedField}"`;
+    }
+    return stringField;
+  };
+
+  const generateCSVContent = (
+    sessions: FastingSession[],
+    metrics: HealthMetrics[],
+    entries: JournalEntry[]
+  ) => {
+    const toCsvRow = (arr: any[]) => arr.map(escapeCsvField).join(',');
+
+    // Fasting Sessions
+    const sessionHeaders = [
+      'Date',
+      'Method',
+      'Start Time',
+      'End Time',
+      'Duration (hours)',
+      'Completed',
+    ];
+    const sessionRows = sessions.map((s) =>
+      toCsvRow([
+        new Date(s.startTime).toLocaleDateString(),
+        s.method.name,
+        new Date(s.startTime).toLocaleTimeString(),
+        new Date(s.endTime).toLocaleTimeString(),
+        (s.duration / 3600000).toFixed(2),
+        s.completed,
+      ])
+    );
+    const sessionsCsv = `FASTING SESSIONS\n${toCsvRow(
+      sessionHeaders
+    )}\n${sessionRows.join('\n')}`;
+
+    // Health Metrics
+    const metricHeaders = [
+      'Date',
+      'Weight',
+      'Water Intake (ml)',
+      'Energy Level (1-5)',
+      'Mood (1-5)',
+      'Sleep Quality (1-5)',
+    ];
+    const metricRows = metrics.map((m) =>
+      toCsvRow([
+        new Date(m.date).toLocaleDateString(),
+        m.weight ?? 'N/A',
+        m.waterIntake,
+        m.energyLevel,
+        m.mood,
+        m.sleepQuality,
+      ])
+    );
+    const metricsCsv = `HEALTH METRICS\n${toCsvRow(
+      metricHeaders
+    )}\n${metricRows.join('\n')}`;
+
+    // Journal Entries
+    const entryHeaders = ['Date', 'Title', 'Mood', 'Tags', 'Content'];
+    const entryRows = entries.map((e) =>
+      toCsvRow([
+        new Date(e.date).toLocaleDateString(),
+        e.title,
+        e.mood,
+        e.tags.join('; '),
+        e.content,
+      ])
+    );
+    const entriesCsv = `JOURNAL ENTRIES\n${toCsvRow(
+      entryHeaders
+    )}\n${entryRows.join('\n')}`;
+
+    return `${sessionsCsv}\n\n${metricsCsv}\n\n${entriesCsv}`;
+  };
+
   const handleExportData = async () => {
     try {
-      // Get all data for export
-      const [fastingSessions, healthMetrics, journalEntries] = await Promise.all([
-        storageService.getFastingSessions(),
-        storageService.getHealthMetrics(),
-        storageService.getJournalEntries()
-      ]);
+      const [fastingSessions, healthMetrics, journalEntries] =
+        await Promise.all([
+          storageService.getFastingSessions(),
+          storageService.getHealthMetrics(),
+          storageService.getJournalEntries(),
+        ]);
 
-      // Create CSV content
-      const csvContent = generateCSVContent(fastingSessions, healthMetrics, journalEntries);
-      
-      // For now, show the data in an alert (in a real app, you'd use expo-sharing or similar)
-      Alert.alert(
-        'Export Data',
-        `Data export ready!\n\nFasting Sessions: ${fastingSessions.length}\nHealth Metrics: ${healthMetrics.length}\nJournal Entries: ${journalEntries.length}\n\nIn a real app, this would generate a CSV file for download.`,
-        [
-          { text: 'OK' },
-          {
-            text: 'View Data',
-            onPress: () => {
-              Alert.alert(
-                'Exported Data Preview',
-                `Fasting Sessions:\n${fastingSessions.map(s => `- ${s.method.name}: ${new Date(s.startTime).toLocaleDateString()}`).join('\n')}\n\nHealth Metrics:\n${healthMetrics.map(m => `- ${new Date(m.date).toLocaleDateString()}: Weight ${m.weight || 'N/A'}, Energy ${m.energyLevel}/5`).join('\n')}\n\nJournal Entries:\n${journalEntries.map(e => `- ${new Date(e.date).toLocaleDateString()}: ${e.title}`).join('\n')}\n\nIn a real app, this would display the data in a readable format or generate a CSV file for download.`,
-                [{ text: 'OK' }]
-              );
-            }
-          }
-        ]
+      const csvContent = generateCSVContent(
+        fastingSessions,
+        healthMetrics,
+        journalEntries
       );
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csvContent], {
+          type: 'text/csv;charset=utf-8;',
+        });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'FastTrack_Export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      const fileUri = FileSystem.cacheDirectory + 'FastTrack_Export.csv';
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export your data',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        Alert.alert(
+          'Export Ready',
+          `Your data has been saved. You can access it at: ${fileUri}`
+        );
+      }
     } catch (error) {
       console.error('Error exporting data:', error);
       Alert.alert('Error', 'Failed to export data');
     }
   };
 
-  const generateCSVContent = (sessions: any[], metrics: any[], entries: any[]) => {
-    // Create CSV headers
-    const sessionHeaders = 'Date,Method,Start Time,End Time,Duration (hours),Completed\n';
-    const metricHeaders = 'Date,Weight,Water Intake,Energy Level,Mood,Sleep Quality\n';
-    const entryHeaders = 'Date,Title,Mood,Tags,Content\n';
-    
-    // Create CSV rows
-    const sessionRows = sessions.map(s => 
-      `${new Date(s.startTime).toLocaleDateString()},${s.method.name},${new Date(s.startTime).toLocaleTimeString()},${new Date(s.endTime).toLocaleTimeString()},${(s.duration / 3600000).toFixed(1)},${s.completed}`
-    ).join('\n');
-    const metricRows = metrics.map(m => 
-      `${new Date(m.date).toLocaleDateString()},${m.weight || 'N/A'},${m.waterIntake},${m.energyLevel},${m.mood},${m.sleepQuality}`
-    ).join('\n');
-    const entryRows = entries.map(e => 
-      `${new Date(e.date).toLocaleDateString()},${e.title},${e.mood},"${e.tags.join(',')}",${e.content.replace(/"/g, '').replace(/,/g, '')}`
-    ).join('\n');
-    
-    return `FASTING SESSIONS\n${sessionHeaders}${sessionRows}\n\nHEALTH METRICS\n${metricHeaders}${metricRows}\n\nJOURNAL ENTRIES\n${entryHeaders}${entryRows}`;
-  };
-
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading settings...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading settings...
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
@@ -208,20 +333,35 @@ export default function SettingsScreen() {
             {settings.isPremium && <PremiumBadge size="small" />}
           </View>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {settings.isPremium ? 'Premium member - enjoy all features!' : 'Customize your fasting experience'}
+            {settings.isPremium
+              ? 'Premium member - enjoy all features!'
+              : 'Customize your fasting experience'}
           </Text>
         </View>
 
         {!settings.isPremium && (
-          <TouchableOpacity 
-            style={[styles.premiumCard, { backgroundColor: '#FFD700' + '20', borderColor: '#FFD700' + '40' }]}
+          <TouchableOpacity
+            style={[
+              styles.premiumCard,
+              {
+                backgroundColor: '#FFD700' + '20',
+                borderColor: '#FFD700' + '40',
+              },
+            ]}
             onPress={() => setShowUpgradeModal(true)}
           >
             <View style={styles.premiumCardContent}>
               <Crown size={24} color="#FFD700" />
               <View style={styles.premiumCardText}>
-                <Text style={[styles.premiumCardTitle, { color: colors.text }]}>Upgrade to Premium</Text>
-                <Text style={[styles.premiumCardSubtitle, { color: colors.textSecondary }]}>
+                <Text style={[styles.premiumCardTitle, { color: colors.text }]}>
+                  Upgrade to Premium
+                </Text>
+                <Text
+                  style={[
+                    styles.premiumCardSubtitle,
+                    { color: colors.textSecondary },
+                  ]}
+                >
                   Unlock advanced analytics, custom plans, and more
                 </Text>
               </View>
@@ -237,13 +377,27 @@ export default function SettingsScreen() {
             ) : (
               <Sun size={20} color="#F59E0B" />
             )}
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Appearance
+            </Text>
           </View>
-          
-          <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+
+          <View
+            style={[
+              styles.settingItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Dark Mode
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Switch between light and dark themes
               </Text>
             </View>
@@ -259,13 +413,27 @@ export default function SettingsScreen() {
         <View key="notifications-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <Bell size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Notifications
+            </Text>
           </View>
-          
-          <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+
+          <View
+            style={[
+              styles.settingItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Enable Notifications</Text>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Enable Notifications
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Receive reminders for fasting start and end times
               </Text>
             </View>
@@ -273,39 +441,84 @@ export default function SettingsScreen() {
               value={settings.notificationsEnabled}
               onValueChange={toggleNotifications}
               trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={settings.notificationsEnabled ? colors.primary : colors.textTertiary}
+              thumbColor={
+                settings.notificationsEnabled
+                  ? colors.primary
+                  : colors.textTertiary
+              }
             />
           </View>
 
-          <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.settingItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Fasting Start Notifications</Text>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Fasting Start Notifications
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Get notified when it's time to start fasting
               </Text>
             </View>
             <Switch
-              value={settings.fastingStartNotification && settings.notificationsEnabled}
-              onValueChange={(value) => saveSettings({ ...settings, fastingStartNotification: value })}
+              value={
+                settings.fastingStartNotification &&
+                settings.notificationsEnabled
+              }
+              onValueChange={(value) =>
+                saveSettings({ ...settings, fastingStartNotification: value })
+              }
               disabled={!settings.notificationsEnabled}
               trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={settings.fastingStartNotification ? colors.primary : colors.textTertiary}
+              thumbColor={
+                settings.fastingStartNotification
+                  ? colors.primary
+                  : colors.textTertiary
+              }
             />
           </View>
 
-          <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.settingItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Fasting End Notifications</Text>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Fasting End Notifications
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Get notified when your fasting window ends
               </Text>
             </View>
             <Switch
-              value={settings.fastingEndNotification && settings.notificationsEnabled}
-              onValueChange={(value) => saveSettings({ ...settings, fastingEndNotification: value })}
+              value={
+                settings.fastingEndNotification && settings.notificationsEnabled
+              }
+              onValueChange={(value) =>
+                saveSettings({ ...settings, fastingEndNotification: value })
+              }
               disabled={!settings.notificationsEnabled}
               trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={settings.fastingEndNotification ? colors.primary : colors.textTertiary}
+              thumbColor={
+                settings.fastingEndNotification
+                  ? colors.primary
+                  : colors.textTertiary
+              }
             />
           </View>
         </View>
@@ -313,13 +526,27 @@ export default function SettingsScreen() {
         <View key="preferences-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <User size={20} color={colors.success} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Preferences
+            </Text>
           </View>
-          
-          <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+
+          <View
+            style={[
+              styles.settingItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Units</Text>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Units
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Choose your preferred measurement system
               </Text>
             </View>
@@ -332,32 +559,60 @@ export default function SettingsScreen() {
         <View key="learn-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <BookOpen size={20} color={colors.warning} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Learn</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Learn
+            </Text>
           </View>
-          
-          <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => {
-            Alert.alert(
-              'Intermittent Fasting Guide',
-              'Intermittent fasting is an eating pattern that cycles between periods of fasting and eating. Popular methods include:\n\n• 16:8 - Fast 16 hours, eat in 8 hours\n• 18:6 - Fast 18 hours, eat in 6 hours\n• 20:4 - Fast 20 hours, eat in 4 hours\n• OMAD - One meal a day\n\nAlways consult with a healthcare provider before starting any fasting regimen.',
-              [{ text: 'OK' }]
-            );
-          }}>
-            <Text style={[styles.actionItemText, { color: colors.text }]}>Fasting Guide</Text>
+
+          <TouchableOpacity
+            style={[
+              styles.actionItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              Alert.alert(
+                'Intermittent Fasting Guide',
+                'Intermittent fasting is an eating pattern that cycles between periods of fasting and eating. Popular methods include:\n\n• 16:8 - Fast 16 hours, eat in 8 hours\n• 18:6 - Fast 18 hours, eat in 6 hours\n• 20:4 - Fast 20 hours, eat in 4 hours\n• OMAD - One meal a day\n\nAlways consult with a healthcare provider before starting any fasting regimen.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Text style={[styles.actionItemText, { color: colors.text }]}>
+              Fasting Guide
+            </Text>
           </TouchableOpacity>
         </View>
 
         <View key="about-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <Info size={20} color="#8B5CF6" />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              About
+            </Text>
           </View>
-          
-          <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showAbout}>
-            <Text style={[styles.actionItemText, { color: colors.text }]}>About FastTrack</Text>
+
+          <TouchableOpacity
+            style={[
+              styles.actionItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            onPress={showAbout}
+          >
+            <Text style={[styles.actionItemText, { color: colors.text }]}>
+              About FastTrack
+            </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.actionItem, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showPrivacyPolicy}>
-            <Text style={[styles.actionItemText, { color: colors.text }]}>Privacy Policy</Text>
+
+          <TouchableOpacity
+            style={[
+              styles.actionItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            onPress={showPrivacyPolicy}
+          >
+            <Text style={[styles.actionItemText, { color: colors.text }]}>
+              Privacy Policy
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -365,13 +620,27 @@ export default function SettingsScreen() {
         <View key="premium-demo-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <Crown size={20} color="#FFD700" />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium (Demo)</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Premium (Demo)
+            </Text>
           </View>
-          
-          <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+
+          <View
+            style={[
+              styles.settingItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>Premium Status</Text>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Premium Status
+              </Text>
+              <Text
+                style={[
+                  styles.settingDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Toggle premium features for demo purposes
               </Text>
             </View>
@@ -387,36 +656,78 @@ export default function SettingsScreen() {
         <View key="data-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <Shield size={20} color={colors.error} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Data
+            </Text>
           </View>
-          
+
           {/* Export Data - Premium Feature */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.exportItem, 
-              { 
-                backgroundColor: settings.isPremium ? colors.primary + '20' : colors.surface, 
-                borderColor: settings.isPremium ? colors.primary + '40' : colors.border,
-                opacity: settings.isPremium ? 1 : 0.7
-              }
-            ]} 
-            onPress={settings.isPremium ? handleExportData : () => setShowUpgradeModal(true)}
+              styles.exportItem,
+              {
+                backgroundColor: settings.isPremium
+                  ? colors.primary + '20'
+                  : colors.surface,
+                borderColor: settings.isPremium
+                  ? colors.primary + '40'
+                  : colors.border,
+                opacity: settings.isPremium ? 1 : 0.7,
+              },
+            ]}
+            onPress={
+              settings.isPremium
+                ? handleExportData
+                : () => setShowUpgradeModal(true)
+            }
           >
-            <Download size={16} color={settings.isPremium ? colors.primary : colors.textSecondary} />
+            <Download
+              size={16}
+              color={settings.isPremium ? colors.primary : colors.textSecondary}
+            />
             <View style={styles.exportContent}>
-              <Text style={[styles.exportTitle, { color: settings.isPremium ? colors.primary : colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.exportTitle,
+                  {
+                    color: settings.isPremium
+                      ? colors.primary
+                      : colors.textSecondary,
+                  },
+                ]}
+              >
                 Export Data
               </Text>
-              <Text style={[styles.exportDescription, { color: settings.isPremium ? colors.primary : colors.textTertiary }]}>
+              <Text
+                style={[
+                  styles.exportDescription,
+                  {
+                    color: settings.isPremium
+                      ? colors.primary
+                      : colors.textTertiary,
+                  },
+                ]}
+              >
                 Export your fasting history and health metrics
               </Text>
             </View>
             {!settings.isPremium && <PremiumBadge size="small" />}
           </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.dangerItem, { backgroundColor: colors.error + '20', borderColor: colors.error + '40' }]} onPress={clearAllData}>
+
+          <TouchableOpacity
+            style={[
+              styles.dangerItem,
+              {
+                backgroundColor: colors.error + '20',
+                borderColor: colors.error + '40',
+              },
+            ]}
+            onPress={clearAllData}
+          >
             <Trash2 size={16} color={colors.error} />
-            <Text style={[styles.dangerItemText, { color: colors.error }]}>Clear All Data</Text>
+            <Text style={[styles.dangerItemText, { color: colors.error }]}>
+              Clear All Data
+            </Text>
           </TouchableOpacity>
         </View>
 
