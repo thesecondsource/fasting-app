@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Play, Square, Timer } from 'lucide-react-native';
@@ -16,6 +17,7 @@ import { FastingMethod } from '@/types';
 import { FASTING_METHODS } from '@/constants/fastingMethods';
 import { dateUtils } from '@/utils/dateUtils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { storageService } from '@/utils/storage';
 
 export default function TimerScreen() {
   const { colors } = useTheme();
@@ -31,22 +33,27 @@ export default function TimerScreen() {
     FASTING_METHODS[0]
   );
   const [showMethodSelection, setShowMethodSelection] = useState(false);
-  const [timerDisplay, setTimerDisplay] = useState('');
 
   useEffect(() => {
-    if (fastingState.method) {
-      setSelectedMethod(fastingState.method);
-    }
-  }, [fastingState.method]);
+    const loadInitialMethod = async () => {
+      if (fastingState.isActive && fastingState.method) {
+        setSelectedMethod(fastingState.method);
+      } else {
+        try {
+          const settings = await storageService.getUserSettings();
+          if (settings.preferredMethod) {
+            setSelectedMethod(settings.preferredMethod);
+          }
+        } catch (error) {
+          console.error('Failed to load preferred method', error);
+        }
+      }
+    };
 
-  useEffect(() => {
-    if (fastingState.isActive) {
-      // The timer display is now driven by the hook's `currentTime` state updates.
-      setTimerDisplay(getTimeRemaining());
-    } else {
-      setTimerDisplay(`${selectedMethod.fastingHours}h 0m`);
+    if (!loading) {
+      loadInitialMethod();
     }
-  }, [fastingState.isActive, getTimeRemaining, selectedMethod]);
+  }, [loading, fastingState.isActive, fastingState.method]);
 
   const handleStartFasting = () => {
     Alert.alert(
@@ -70,15 +77,51 @@ export default function TimerScreen() {
     );
   };
 
+  const handleSelectMethod = async (method: FastingMethod) => {
+    setSelectedMethod(method);
+    setShowMethodSelection(false);
+    try {
+      const settings = await storageService.getUserSettings();
+      await storageService.saveUserSettings({
+        ...settings,
+        preferredMethod: method,
+      });
+    } catch (error) {
+      console.error('Failed to save preferred method', error);
+    }
+  };
+
+  const getEndTimeDisplay = () => {
+    if (!fastingState.startTime || !fastingState.endTime) return '';
+
+    const start = new Date(fastingState.startTime);
+    const end = new Date(fastingState.endTime);
+
+    const isSameDay =
+      start.getDate() === end.getDate() &&
+      start.getMonth() === end.getMonth() &&
+      start.getFullYear() === end.getFullYear();
+
+    if (isSameDay) {
+      return dateUtils.formatTime(end);
+    }
+
+    const tomorrow = new Date(start);
+    tomorrow.setDate(start.getDate() + 1);
+    const isTomorrow = end.getDate() === tomorrow.getDate();
+
+    return isTomorrow
+      ? `${dateUtils.formatTime(end)} (Tomorrow)`
+      : `${dateUtils.formatTime(end)} on ${dateUtils.formatDate(end)}`;
+  };
+
   if (loading) {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
       >
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Loading...
-          </Text>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -109,7 +152,9 @@ export default function TimerScreen() {
             <View style={styles.timerContent}>
               <Timer size={32} color={colors.primary} />
               <Text style={[styles.timerText, { color: colors.text }]}>
-                {timerDisplay}
+                {fastingState.isActive
+                  ? getTimeRemaining()
+                  : `${selectedMethod.fastingHours}h 0m`}
               </Text>
               <Text
                 style={[styles.timerLabel, { color: colors.textSecondary }]}
@@ -134,7 +179,7 @@ export default function TimerScreen() {
               Started: {dateUtils.formatTime(fastingState.startTime!)}
             </Text>
             <Text style={[styles.activeInfoText, { color: colors.primary }]}>
-              Ends: {dateUtils.formatTime(fastingState.endTime!)}
+              Ends: {getEndTimeDisplay()}
             </Text>
             <Text style={[styles.methodText, { color: colors.primary }]}>
               Method: {fastingState.method.name}
@@ -165,10 +210,7 @@ export default function TimerScreen() {
                 key={method.id}
                 method={method}
                 isSelected={selectedMethod.id === method.id}
-                onSelect={(method) => {
-                  setSelectedMethod(method);
-                  setShowMethodSelection(false);
-                }}
+                onSelect={handleSelectMethod}
               />
             ))}
           </View>
@@ -199,27 +241,6 @@ export default function TimerScreen() {
                   Start Fast
                 </Text>
               </TouchableOpacity>
-              {!showMethodSelection && (
-                <TouchableOpacity
-                  style={[
-                    styles.changeMethodButton,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  onPress={() => setShowMethodSelection(true)}
-                >
-                  <Text
-                    style={[
-                      styles.changeMethodButtonText,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    Change Method
-                  </Text>
-                </TouchableOpacity>
-              )}
             </>
           )}
         </View>
@@ -240,9 +261,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
   },
   header: {
     alignItems: 'center',
@@ -265,7 +283,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timerText: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '700',
     marginTop: 8,
     marginBottom: 4,
@@ -327,16 +345,6 @@ const styles = StyleSheet.create({
   },
   stopButtonText: {
     fontSize: 18,
-    fontWeight: '600',
-  },
-  changeMethodButton: {
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-    borderWidth: 2,
-  },
-  changeMethodButtonText: {
-    fontSize: 16,
     fontWeight: '600',
   },
 });
