@@ -132,7 +132,6 @@ export const storageService = {
             darkMode: false,
             onboardingCompleted: false,
             paywallSeen: false,
-            isPremium: false,
           };
     } catch (error) {
       console.error('Error loading user settings:', error);
@@ -146,7 +145,6 @@ export const storageService = {
         darkMode: false,
         onboardingCompleted: false,
         paywallSeen: false,
-        isPremium: false,
       };
     }
   },

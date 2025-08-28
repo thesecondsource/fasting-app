@@ -24,6 +24,7 @@ import {
   Star,
   Bug,
   Download,
+  RefreshCw,
 } from 'lucide-react-native';
 import {
   UserSettings,
@@ -33,6 +34,7 @@ import {
 } from '@/types';
 import { storageService } from '@/utils/storage';
 import { notificationService } from '@/utils/notifications';
+import { revenueCatService } from '@/services/revenueCatService';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useFastingContext } from '@/contexts/FastingContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -43,7 +45,12 @@ import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const { colors, toggleDarkMode } = useTheme();
-  const { isPremium, devPremiumEnabled, toggleDevPremium } = useSubscription();
+  const {
+    isPremium,
+    devPremiumEnabled,
+    toggleDevPremium,
+    refetchCustomerInfo,
+  } = useSubscription();
   const { stopFasting } = useFastingContext();
   const [settings, setSettings] = useState<UserSettings>({
     preferredMethod: {
@@ -62,10 +69,10 @@ export default function SettingsScreen() {
     onboardingCompleted: false, // isPremium is now handled by SubscriptionContext
     premiumExpiryDate: undefined,
     paywallSeen: false,
-    isPremium: false, // <-- Added to satisfy UserSettings type
   });
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -163,6 +170,27 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const handleRestorePurchases = async () => {
+    if (isRestoring) return;
+    setIsRestoring(true);
+    try {
+      const customerInfo = await revenueCatService.restorePurchases();
+      if (customerInfo && revenueCatService.isUserPremium(customerInfo)) {
+        await refetchCustomerInfo();
+        Alert.alert('Success', 'Your premium access has been restored.');
+      } else {
+        Alert.alert(
+          'No Purchases Found',
+          'We could not find an active subscription to restore.'
+        );
+      }
+    } catch (error) {
+      console.error('Restore purchase failed in component:', error);
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const showAbout = () => {
@@ -575,6 +603,35 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <View key="account-section" style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <User size={20} color={colors.success} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Account
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.actionItem,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              isRestoring && styles.disabledItem,
+            ]}
+            onPress={handleRestorePurchases}
+            disabled={isRestoring}
+          >
+            <View style={styles.actionItemContent}>
+              <RefreshCw
+                size={16}
+                color={isRestoring ? colors.textTertiary : colors.primary}
+              />
+              <Text style={[styles.actionItemText, { color: colors.text }]}>
+                {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <View key="learn-section" style={styles.section}>
           <View style={styles.sectionHeader}>
             <BookOpen size={20} color={colors.warning} />
@@ -852,6 +909,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
   },
+  actionItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   actionItemText: {
     fontSize: 16,
     fontWeight: '500',
@@ -889,5 +951,8 @@ const styles = StyleSheet.create({
   exportDescription: {
     fontSize: 14,
     lineHeight: 18,
+  },
+  disabledItem: {
+    opacity: 0.6,
   },
 });
