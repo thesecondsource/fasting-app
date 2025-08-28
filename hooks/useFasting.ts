@@ -23,7 +23,7 @@ export const useFasting = () => {
 
   // Update current time every minute when fasting is active
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     if (fastingState.isActive) {
       interval = setInterval(() => {
@@ -50,20 +50,26 @@ export const useFasting = () => {
       if (savedState) {
         // Check if the saved fasting session is still active
         const now = new Date();
-        if (savedState.endTime && now < savedState.endTime) {
+        if (
+          savedState.isActive &&
+          savedState.endTime &&
+          now < savedState.endTime
+        ) {
           setFastingState(savedState);
           setCurrentTime(now);
         } else {
-          // Session has ended, complete it and clear state
-          if (savedState.currentSession) {
+          // Session has ended or state is inconsistent.
+          // If we have a session and a valid end time, complete it.
+          if (savedState.currentSession && savedState.endTime) {
             const completedSession: FastingSession = {
               ...savedState.currentSession,
               endTime: savedState.endTime,
               completed: true,
-              duration: savedState.method.fastingHours * 60,
+              duration: savedState.method.fastingHours * 60 * 60 * 1000, // Store in ms
             };
             await storageService.saveFastingSession(completedSession);
           }
+          // In any case, clear the invalid/ended state.
           await storageService.clearFastingState();
         }
       }
@@ -81,7 +87,7 @@ export const useFasting = () => {
           ...fastingState.currentSession,
           endTime: fastingState.endTime || new Date(),
           completed: true,
-          duration: fastingState.method.fastingHours * 60,
+          duration: fastingState.method.fastingHours * 60 * 60 * 1000, // Store in ms
         };
 
         await storageService.saveFastingSession(completedSession);
@@ -112,7 +118,7 @@ export const useFasting = () => {
         startTime,
         endTime,
         completed: false,
-        duration: method.fastingHours * 60,
+        duration: method.fastingHours * 60 * 60 * 1000, // Store in ms
       };
 
       const newState: FastingState = {
@@ -162,10 +168,8 @@ export const useFasting = () => {
         const completedSession: FastingSession = {
           ...fastingState.currentSession,
           endTime: new Date(),
-          completed: true,
-          duration: Math.round(
-            (new Date().getTime() - fastingState.startTime!.getTime()) / 60000
-          ),
+          completed: false, // Ended early, not fully completed
+          duration: new Date().getTime() - fastingState.startTime!.getTime(), // Store in ms
         };
 
         await storageService.saveFastingSession(completedSession);

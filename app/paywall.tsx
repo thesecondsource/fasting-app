@@ -84,7 +84,6 @@ export default function PaywallScreen() {
       const settings = await storageService.getUserSettings();
       await storageService.saveUserSettings({
         ...settings,
-        isPremium: false,
         paywallSeen: true,
       });
       router.replace('/(tabs)');

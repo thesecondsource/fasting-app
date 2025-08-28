@@ -131,8 +131,8 @@ export const storageService = {
             units: 'metric',
             darkMode: false,
             onboardingCompleted: false,
-            isPremium: false,
             paywallSeen: false,
+            isPremium: false,
           };
     } catch (error) {
       console.error('Error loading user settings:', error);
@@ -145,8 +145,8 @@ export const storageService = {
         units: 'metric',
         darkMode: false,
         onboardingCompleted: false,
-        isPremium: false,
         paywallSeen: false,
+        isPremium: false,
       };
     }
   },

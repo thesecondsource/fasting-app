@@ -62,6 +62,7 @@ export default function SettingsScreen() {
     onboardingCompleted: false, // isPremium is now handled by SubscriptionContext
     premiumExpiryDate: undefined,
     paywallSeen: false,
+    isPremium: false, // <-- Added to satisfy UserSettings type
   });
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -224,7 +225,7 @@ export default function SettingsScreen() {
         s.method.name,
         new Date(s.startTime).toLocaleTimeString(),
         new Date(s.endTime).toLocaleTimeString(),
-        (s.duration / 3600000).toFixed(2),
+        (s.duration / (1000 * 60 * 60)).toFixed(2), // duration is in ms
         s.completed,
       ])
     );
