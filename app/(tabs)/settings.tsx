@@ -44,7 +44,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
-  const { colors, toggleDarkMode } = useTheme();
+  const { colors, isDarkMode, toggleDarkMode } = useTheme();
   const {
     isPremium,
     devPremiumEnabled,
@@ -97,12 +97,6 @@ export default function SettingsScreen() {
       console.error('Error saving settings:', error);
       Alert.alert('Error', 'Failed to save settings');
     }
-  };
-
-  const handleDarkModeToggle = async (enabled: boolean) => {
-    await toggleDarkMode();
-    const newSettings = { ...settings, darkMode: enabled };
-    setSettings(newSettings);
   };
 
   const toggleNotifications = async (enabled: boolean) => {
@@ -237,6 +231,9 @@ export default function SettingsScreen() {
     entries: JournalEntry[]
   ) => {
     const toCsvRow = (arr: any[]) => arr.map(escapeCsvField).join(',');
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    const formatTime = (date: Date) =>
+      date.toISOString().split('T')[1].substring(0, 8);
 
     // Fasting Sessions
     const sessionHeaders = [
@@ -249,10 +246,10 @@ export default function SettingsScreen() {
     ];
     const sessionRows = sessions.map((s) =>
       toCsvRow([
-        new Date(s.startTime).toLocaleDateString(),
+        formatDate(new Date(s.startTime)),
         s.method.name,
-        new Date(s.startTime).toLocaleTimeString(),
-        new Date(s.endTime).toLocaleTimeString(),
+        formatTime(new Date(s.startTime)),
+        formatTime(new Date(s.endTime)),
         (s.duration / (1000 * 60 * 60)).toFixed(2), // duration is in ms
         s.completed,
       ])
@@ -272,7 +269,7 @@ export default function SettingsScreen() {
     ];
     const metricRows = metrics.map((m) =>
       toCsvRow([
-        new Date(m.date).toLocaleDateString(),
+        formatDate(new Date(m.date)),
         m.weight ?? 'N/A',
         m.waterIntake,
         m.energyLevel,
@@ -288,7 +285,7 @@ export default function SettingsScreen() {
     const entryHeaders = ['Date', 'Title', 'Mood', 'Tags', 'Content'];
     const entryRows = entries.map((e) =>
       toCsvRow([
-        new Date(e.date).toLocaleDateString(),
+        formatDate(new Date(e.date)),
         e.title,
         e.mood,
         e.tags.join('; '),
@@ -431,29 +428,34 @@ export default function SettingsScreen() {
 
           <View
             style={[
-              styles.settingItem,
+              styles.settingsGroup,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                Dark Mode
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Switch between light and dark themes
-              </Text>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  Dark Mode
+                </Text>
+                <Text
+                  style={[
+                    styles.settingDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Switch between light and dark themes
+                </Text>
+              </View>
+              <Switch
+                value={isDarkMode}
+                onValueChange={toggleDarkMode}
+                trackColor={{
+                  false: colors.border,
+                  true: colors.primary + '60',
+                }}
+                thumbColor={isDarkMode ? '#8B5CF6' : '#9CA3AF'}
+              />
             </View>
-            <Switch
-              value={settings.darkMode}
-              onValueChange={handleDarkModeToggle}
-              trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={settings.darkMode ? '#8B5CF6' : '#9CA3AF'}
-            />
           </View>
         </View>
 
@@ -467,106 +469,99 @@ export default function SettingsScreen() {
 
           <View
             style={[
-              styles.settingItem,
+              styles.settingsGroup,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                Enable Notifications
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Receive reminders for fasting start and end times
-              </Text>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  Enable Notifications
+                </Text>
+                <Text
+                  style={[
+                    styles.settingDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Receive reminders for fasting start and end times
+                </Text>
+              </View>
+              <Switch
+                value={settings.notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{
+                  false: colors.border,
+                  true: colors.primary + '60',
+                }}
+                thumbColor={
+                  settings.notificationsEnabled
+                    ? colors.primary
+                    : colors.textTertiary
+                }
+              />
             </View>
-            <Switch
-              value={settings.notificationsEnabled}
-              onValueChange={toggleNotifications}
-              trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={
-                settings.notificationsEnabled
-                  ? colors.primary
-                  : colors.textTertiary
-              }
-            />
-          </View>
 
-          <View
-            style={[
-              styles.settingItem,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                Fasting Start Notifications
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Get notified when it's time to start fasting
-              </Text>
-            </View>
-            <Switch
-              value={
-                settings.fastingStartNotification &&
-                settings.notificationsEnabled
-              }
-              onValueChange={(value) =>
-                saveSettings({ ...settings, fastingStartNotification: value })
-              }
-              disabled={!settings.notificationsEnabled}
-              trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={
-                settings.fastingStartNotification
-                  ? colors.primary
-                  : colors.textTertiary
-              }
-            />
-          </View>
-
-          <View
-            style={[
-              styles.settingItem,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                Fasting End Notifications
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Get notified when your fasting window ends
-              </Text>
-            </View>
-            <Switch
-              value={
-                settings.fastingEndNotification && settings.notificationsEnabled
-              }
-              onValueChange={(value) =>
-                saveSettings({ ...settings, fastingEndNotification: value })
-              }
-              disabled={!settings.notificationsEnabled}
-              trackColor={{ false: colors.border, true: colors.primary + '60' }}
-              thumbColor={
-                settings.fastingEndNotification
-                  ? colors.primary
-                  : colors.textTertiary
-              }
-            />
+            {settings.notificationsEnabled && (
+              <>
+                <View
+                  style={[styles.divider, { backgroundColor: colors.border }]}
+                />
+                <View style={styles.settingItem}>
+                  <View style={styles.settingInfo}>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>
+                      Fasting Start Notifications
+                    </Text>
+                  </View>
+                  <Switch
+                    value={settings.fastingStartNotification}
+                    onValueChange={(value) =>
+                      saveSettings({
+                        ...settings,
+                        fastingStartNotification: value,
+                      })
+                    }
+                    trackColor={{
+                      false: colors.border,
+                      true: colors.primary + '60',
+                    }}
+                    thumbColor={
+                      settings.fastingStartNotification
+                        ? colors.primary
+                        : colors.textTertiary
+                    }
+                  />
+                </View>
+                <View
+                  style={[styles.divider, { backgroundColor: colors.border }]}
+                />
+                <View style={styles.settingItem}>
+                  <View style={styles.settingInfo}>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>
+                      Fasting End Notifications
+                    </Text>
+                  </View>
+                  <Switch
+                    value={settings.fastingEndNotification}
+                    onValueChange={(value) =>
+                      saveSettings({
+                        ...settings,
+                        fastingEndNotification: value,
+                      })
+                    }
+                    trackColor={{
+                      false: colors.border,
+                      true: colors.primary + '60',
+                    }}
+                    thumbColor={
+                      settings.fastingEndNotification
+                        ? colors.primary
+                        : colors.textTertiary
+                    }
+                  />
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -580,26 +575,28 @@ export default function SettingsScreen() {
 
           <View
             style={[
-              styles.settingItem,
+              styles.settingsGroup,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                Units
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Choose your preferred measurement system
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  Units
+                </Text>
+                <Text
+                  style={[
+                    styles.settingDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Choose your preferred measurement system
+                </Text>
+              </View>
+              <Text style={[styles.settingValue, { color: colors.primary }]}>
+                {settings.units === 'metric' ? 'Metric' : 'Imperial'}
               </Text>
             </View>
-            <Text style={[styles.settingValue, { color: colors.primary }]}>
-              {settings.units === 'metric' ? 'Metric' : 'Imperial'}
-            </Text>
           </View>
         </View>
 
@@ -774,27 +771,29 @@ export default function SettingsScreen() {
 
             <View
               style={[
-                styles.settingItem,
+                styles.settingsGroup,
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: colors.text }]}>
-                  Force Premium Access
-                </Text>
-                <Text
-                  style={[
-                    styles.settingDescription,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  Bypass purchases to test premium features.
-                </Text>
+              <View style={styles.settingItem}>
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>
+                    Force Premium Access
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingDescription,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Bypass purchases to test premium features.
+                  </Text>
+                </View>
+                <Switch
+                  value={devPremiumEnabled}
+                  onValueChange={toggleDevPremium}
+                />
               </View>
-              <Switch
-                value={devPremiumEnabled}
-                onValueChange={toggleDevPremium}
-              />
             </View>
           </View>
         )}
@@ -868,6 +867,11 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 32,
   },
+  settingsGroup: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -882,10 +886,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
   },
   settingInfo: {
     flex: 1,
@@ -902,6 +903,11 @@ const styles = StyleSheet.create({
   settingValue: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    marginLeft: 16,
+    marginRight: 16,
   },
   actionItem: {
     borderRadius: 12,

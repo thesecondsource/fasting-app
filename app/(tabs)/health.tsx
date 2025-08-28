@@ -484,7 +484,9 @@ export default function HealthScreen() {
     <View style={styles.ratingContainer}>
       <View style={styles.ratingHeader}>
         <Icon size={20} color={color} />
-        <Text style={styles.ratingTitle}>{title}</Text>
+        <Text style={[styles.ratingTitle, { color: colors.text }]}>
+          {title}
+        </Text>
       </View>
       <View style={styles.ratingButtons}>
         {[1, 2, 3, 4, 5].map((rating) => (
