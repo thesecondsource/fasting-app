@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,9 @@ import {
   Award,
 } from 'lucide-react-native';
 import { storageService } from '@/utils/storage';
-import { SUBSCRIPTION_PLANS } from '@/constants/premiumFeatures';
+import { revenueCatService } from '@/services/revenueCatService';
+import { PurchasesPackage } from 'react-native-purchases';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const { width } = Dimensions.get('window');
 
@@ -70,8 +72,12 @@ const premiumFeatures = [
 ];
 
 export default function PaywallScreen() {
-  const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[1]); // Default to yearly (popular)
+  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<PurchasesPackage | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
+  const { refetchCustomerInfo } = useSubscription();
 
   const handleContinueWithFree = async () => {
     try {
@@ -88,23 +94,40 @@ export default function PaywallScreen() {
     }
   };
 
-  const handleUpgrade = async (planId: string) => {
+  useEffect(() => {
+    const fetchOfferings = async () => {
+      const offerings = await revenueCatService.getOfferings();
+      if (
+        offerings?.current &&
+        offerings.current.availablePackages.length > 0
+      ) {
+        setPackages(offerings.current.availablePackages);
+        // Default to the annual package if available, otherwise the first one
+        const annual = offerings.current.availablePackages.find(
+          (p) => p.packageType === 'ANNUAL'
+        );
+        setSelectedPlan(annual || offerings.current.availablePackages[0]);
+      }
+    };
+    fetchOfferings();
+  }, []);
+
+  const handleUpgrade = async () => {
+    if (!selectedPlan) return;
     setLoading(true);
 
     try {
-      // In a real app, this would integrate with RevenueCat or similar payment processor
-      // For demo purposes, we'll simulate a successful purchase
+      const customerInfo = await revenueCatService.purchasePackage(
+        selectedPlan
+      );
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (!customerInfo || !revenueCatService.isUserPremium(customerInfo)) {
+        throw new Error(
+          'Purchase failed or did not grant premium entitlement.'
+        );
+      }
 
-      // Update user settings to premium
-      const settings = await storageService.getUserSettings();
-      await storageService.saveUserSettings({
-        ...settings,
-        isPremium: true,
-        premiumExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
-      });
+      await refetchCustomerInfo();
 
       Alert.alert(
         'Welcome to Premium! 🎉',
@@ -129,11 +152,20 @@ export default function PaywallScreen() {
   };
 
   const handleRestorePurchases = async () => {
-    Alert.alert(
-      'Restore Purchases',
-      'In a real app, this would restore previous purchases from the app store.',
-      [{ text: 'OK' }]
-    );
+    const customerInfo = await revenueCatService.restorePurchases();
+    if (customerInfo && revenueCatService.isUserPremium(customerInfo)) {
+      await refetchCustomerInfo();
+      Alert.alert(
+        'Purchases Restored',
+        'Your premium access has been restored.',
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    } else {
+      Alert.alert(
+        'No Purchases Found',
+        'We could not find any active subscriptions to restore.'
+      );
+    }
   };
 
   return (
@@ -189,17 +221,18 @@ export default function PaywallScreen() {
         {/* Pricing Plans */}
         <View style={styles.pricingContainer}>
           <Text style={styles.pricingTitle}>Choose Your Plan</Text>
-          {SUBSCRIPTION_PLANS.map((plan) => (
+          {packages.map((plan) => (
             <TouchableOpacity
-              key={plan.id}
+              key={plan.identifier}
               style={[
                 styles.planCard,
-                selectedPlan.id === plan.id && styles.selectedPlan,
-                plan.popular && styles.popularPlan,
+                selectedPlan?.identifier === plan.identifier &&
+                  styles.selectedPlan,
+                plan.packageType === 'ANNUAL' && styles.popularPlan,
               ]}
               onPress={() => setSelectedPlan(plan)}
             >
-              {plan.popular && (
+              {plan.packageType === 'ANNUAL' && (
                 <View style={styles.popularBadge}>
                   <Star size={12} color="#000000" />
                   <Text style={styles.popularText}>MOST POPULAR</Text>
@@ -207,23 +240,29 @@ export default function PaywallScreen() {
               )}
 
               <View style={styles.planHeader}>
-                <Text style={styles.planName}>{plan.name}</Text>
+                <Text style={styles.planName}>{plan.product.title}</Text>
                 <View style={styles.priceContainer}>
-                  <Text style={styles.price}>{plan.price}</Text>
-                  <Text style={styles.duration}>{plan.duration}</Text>
+                  <Text style={styles.price}>{plan.product.priceString}</Text>
+                  <Text style={styles.duration}>
+                    / {plan.packageType === 'ANNUAL' ? 'year' : 'month'}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.planFeatures}>
-                {plan.features.slice(0, 3).map((feature, index) => (
+                {[
+                  'Advanced Analytics',
+                  'Comprehensive Charts',
+                  'Export Data',
+                ].map((feature, index) => (
                   <View key={index} style={styles.planFeatureItem}>
                     <Check size={14} color="#10B981" />
                     <Text style={styles.planFeatureText}>{feature}</Text>
                   </View>
                 ))}
-                {plan.features.length > 3 && (
+                {plan.packageType === 'ANNUAL' && (
                   <Text style={styles.moreFeatures}>
-                    +{plan.features.length - 3} more features
+                    + All premium features
                   </Text>
                 )}
               </View>
@@ -234,13 +273,18 @@ export default function PaywallScreen() {
         {/* CTA Buttons */}
         <View style={styles.ctaContainer}>
           <TouchableOpacity
-            style={[styles.upgradeButton, loading && styles.disabledButton]}
-            onPress={() => handleUpgrade(selectedPlan.id)}
-            disabled={loading}
+            style={[
+              styles.upgradeButton,
+              (loading || !selectedPlan) && styles.disabledButton,
+            ]}
+            onPress={handleUpgrade}
+            disabled={loading || !selectedPlan}
           >
             <Crown size={20} color="#FFFFFF" />
             <Text style={styles.upgradeButtonText}>
-              {loading ? 'Processing...' : `Start ${selectedPlan.name} Plan`}
+              {loading
+                ? 'Processing...'
+                : `Start ${selectedPlan?.product.title || 'Plan'}`}
             </Text>
           </TouchableOpacity>
 

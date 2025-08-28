@@ -31,6 +31,7 @@ import {
 } from '@/types';
 import { storageService } from '@/utils/storage';
 import { notificationService } from '@/utils/notifications';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PremiumBadge } from '@/components/PremiumBadge';
 import { PremiumUpgradeModal } from '@/components/PremiumUpgradeModal';
@@ -39,6 +40,7 @@ import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const { colors, toggleDarkMode } = useTheme();
+  const { isPremium } = useSubscription();
   const [settings, setSettings] = useState<UserSettings>({
     preferredMethod: {
       id: '16_8',
@@ -53,8 +55,7 @@ export default function SettingsScreen() {
     reminderInterval: 60,
     units: 'metric',
     darkMode: false,
-    onboardingCompleted: false,
-    isPremium: false,
+    onboardingCompleted: false, // isPremium is now handled by SubscriptionContext
     premiumExpiryDate: undefined,
     paywallSeen: false,
   });
@@ -324,16 +325,16 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <View style={styles.titleContainer}>
             <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-            {settings.isPremium && <PremiumBadge size="small" />}
+            {isPremium && <PremiumBadge size="small" />}
           </View>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {settings.isPremium
+            {isPremium
               ? 'Premium member - enjoy all features!'
               : 'Customize your fasting experience'}
           </Text>
         </View>
 
-        {!settings.isPremium && (
+        {!isPremium && (
           <TouchableOpacity
             style={[
               styles.premiumCard,
@@ -623,33 +624,27 @@ export default function SettingsScreen() {
             style={[
               styles.exportItem,
               {
-                backgroundColor: settings.isPremium
+                backgroundColor: isPremium
                   ? colors.primary + '20'
                   : colors.surface,
-                borderColor: settings.isPremium
-                  ? colors.primary + '40'
-                  : colors.border,
-                opacity: settings.isPremium ? 1 : 0.7,
+                borderColor: isPremium ? colors.primary + '40' : colors.border,
+                opacity: isPremium ? 1 : 0.7,
               },
             ]}
             onPress={
-              settings.isPremium
-                ? handleExportData
-                : () => setShowUpgradeModal(true)
+              isPremium ? handleExportData : () => setShowUpgradeModal(true)
             }
           >
             <Download
               size={16}
-              color={settings.isPremium ? colors.primary : colors.textSecondary}
+              color={isPremium ? colors.primary : colors.textSecondary}
             />
             <View style={styles.exportContent}>
               <Text
                 style={[
                   styles.exportTitle,
                   {
-                    color: settings.isPremium
-                      ? colors.primary
-                      : colors.textSecondary,
+                    color: isPremium ? colors.primary : colors.textSecondary,
                   },
                 ]}
               >
@@ -659,16 +654,14 @@ export default function SettingsScreen() {
                 style={[
                   styles.exportDescription,
                   {
-                    color: settings.isPremium
-                      ? colors.primary
-                      : colors.textTertiary,
+                    color: isPremium ? colors.primary : colors.textTertiary,
                   },
                 ]}
               >
                 Export your fasting history and health metrics
               </Text>
             </View>
-            {!settings.isPremium && <PremiumBadge size="small" />}
+            {!isPremium && <PremiumBadge size="small" />}
           </TouchableOpacity>
 
           <TouchableOpacity

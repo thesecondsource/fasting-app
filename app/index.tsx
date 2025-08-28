@@ -1,54 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Redirect } from 'expo-router';
-import { storageService } from '@/utils/storage';
 
+/**
+ * This is the initial screen that is displayed while the root layout (`_layout.tsx`)
+ * determines the correct route to redirect the user to (e.g., onboarding, paywall, or the main app).
+ * It should not contain any navigation logic itself.
+ */
 export default function IndexScreen() {
-  const [loading, setLoading] = useState(true);
-  const [redirectPath, setRedirectPath] = useState<string | null>(null);
-
-  useEffect(() => {
-    determineRedirectPath();
-  }, []);
-
-  const determineRedirectPath = async () => {
-    try {
-      const settings = await storageService.getUserSettings();
-
-      console.log('Settings loaded:', settings); // Debug log
-
-      if (!settings.onboardingCompleted) {
-        console.log('Redirecting to onboarding'); // Debug log
-        setRedirectPath('/onboarding');
-      } else if (!settings.isPremium && !settings.paywallSeen) {
-        console.log('Redirecting to paywall'); // Debug log
-        setRedirectPath('/paywall');
-      } else {
-        console.log('Redirecting to main app'); // Debug log
-        setRedirectPath('/(tabs)');
-      }
-    } catch (error) {
-      console.error('Error determining redirect path:', error);
-      console.log('Error occurred, defaulting to onboarding'); // Debug log
-      setRedirectPath('/onboarding'); // Default fallback
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading || !redirectPath) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>FastTrack</Text>
-          <Text style={styles.loadingSubtext}>Loading...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return <Redirect href={redirectPath} />;
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>FastTrack</Text>
+        <Text style={styles.loadingSubtext}>Loading...</Text>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({

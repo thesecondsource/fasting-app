@@ -18,6 +18,7 @@ import {
   Star,
   Lock,
 } from 'lucide-react-native';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { storageService } from '@/utils/storage';
 import { FastingSession } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -42,7 +43,7 @@ export default function AchievementsScreen() {
   const [sessions, setSessions] = useState<FastingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isPremium, setIsPremium] = useState(false);
+  const { isPremium } = useSubscription();
 
   useEffect(() => {
     loadData();
@@ -50,13 +51,9 @@ export default function AchievementsScreen() {
 
   const loadData = async () => {
     try {
-      const [fastingSessions, settings] = await Promise.all([
-        storageService.getFastingSessions(),
-        storageService.getUserSettings(),
-      ]);
+      const fastingSessions = await storageService.getFastingSessions();
 
       setSessions(fastingSessions);
-      setIsPremium(settings.isPremium);
       calculateAchievements(fastingSessions);
     } catch (error) {
       console.error('Error loading achievements data:', error);

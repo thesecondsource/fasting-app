@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { FastingSession, HealthMetrics } from '@/types';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { storageService } from '@/utils/storage';
 import { dateUtils } from '@/utils/dateUtils';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -38,7 +39,7 @@ export default function ProgressScreen() {
   const { colors } = useTheme();
   const [sessions, setSessions] = useState<FastingSession[]>([]);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics[]>([]);
-  const [isPremium, setIsPremium] = useState(false);
+  const { isPremium } = useSubscription();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
@@ -53,7 +54,6 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     loadProgressData();
-    loadPremiumStatus();
   }, []);
 
   const loadProgressData = async () => {
@@ -70,15 +70,6 @@ export default function ProgressScreen() {
       console.error('Error loading progress data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadPremiumStatus = async () => {
-    try {
-      const settings = await storageService.getUserSettings();
-      setIsPremium(settings.isPremium);
-    } catch (error) {
-      console.error('Error loading premium status:', error);
     }
   };
 
