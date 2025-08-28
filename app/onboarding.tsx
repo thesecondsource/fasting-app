@@ -1,8 +1,29 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, TextInput, Alert, ScrollView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  TextInput,
+  Alert,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Clock, TrendingUp, Heart, ArrowRight, ArrowLeft, User, Bell, Target, CircleCheck as CheckCircle, Zap } from 'lucide-react-native';
+import {
+  Clock,
+  TrendingUp,
+  Heart,
+  ArrowRight,
+  ArrowLeft,
+  User,
+  Bell,
+  Target,
+  CircleCheck as CheckCircle,
+  Zap,
+} from 'lucide-react-native';
 import { FastingMethodCard } from '@/components/FastingMethodCard';
 import { FASTING_METHODS } from '@/constants/fastingMethods';
 import { storageService } from '@/utils/storage';
@@ -17,7 +38,8 @@ const onboardingScreens = [
     title: 'Welcome to FastTrack',
     subtitle: 'Your personal intermittent fasting companion',
     icon: Clock,
-    content: 'Join millions who have transformed their health through intermittent fasting. Track your progress, monitor your wellness, and achieve your goals with our comprehensive fasting app.',
+    content:
+      'Join millions who have transformed their health through intermittent fasting. Track your progress, monitor your wellness, and achieve your goals with our comprehensive fasting app.',
     color: '#3B82F6',
   },
   {
@@ -25,22 +47,24 @@ const onboardingScreens = [
     title: 'Why Intermittent Fasting?',
     subtitle: 'Discover the science-backed benefits',
     icon: Zap,
-    content: 'Intermittent fasting can help with weight management, improved energy levels, better sleep quality, enhanced mental clarity, and overall wellness.',
+    content:
+      'Intermittent fasting can help with weight management, improved energy levels, better sleep quality, enhanced mental clarity, and overall wellness.',
     color: '#F59E0B',
     benefits: [
       'Weight management support',
       'Increased energy levels',
       'Better sleep quality',
       'Enhanced mental clarity',
-      'Improved metabolic health'
-    ]
+      'Improved metabolic health',
+    ],
   },
   {
     id: 'tracking',
     title: 'Smart Tracking',
     subtitle: 'Monitor your progress effortlessly',
     icon: TrendingUp,
-    content: 'Keep track of your fasting streaks, view detailed statistics, and see your progress over time with beautiful visualizations and insights.',
+    content:
+      'Keep track of your fasting streaks, view detailed statistics, and see your progress over time with beautiful visualizations and insights.',
     color: '#10B981',
   },
   {
@@ -48,7 +72,8 @@ const onboardingScreens = [
     title: 'Holistic Health Monitoring',
     subtitle: 'Track more than just fasting',
     icon: Heart,
-    content: 'Log your weight, water intake, energy levels, mood, and sleep quality to get a complete picture of your health journey and see how fasting affects your overall wellness.',
+    content:
+      'Log your weight, water intake, energy levels, mood, and sleep quality to get a complete picture of your health journey and see how fasting affects your overall wellness.',
     color: '#EF4444',
   },
   {
@@ -56,7 +81,8 @@ const onboardingScreens = [
     title: 'Tell Us About Yourself',
     subtitle: 'Personalize your experience',
     icon: User,
-    content: 'Help us customize your fasting journey by sharing some basic information about your goals and preferences.',
+    content:
+      'Help us customize your fasting journey by sharing some basic information about your goals and preferences.',
     color: '#8B5CF6',
   },
   {
@@ -64,7 +90,8 @@ const onboardingScreens = [
     title: 'Stay on Track',
     subtitle: 'Enable helpful reminders',
     icon: Bell,
-    content: 'Get notified when your fasting window starts and ends, plus receive motivational reminders to help you stay consistent.',
+    content:
+      'Get notified when your fasting window starts and ends, plus receive motivational reminders to help you stay consistent.',
     color: '#06B6D4',
   },
   {
@@ -72,15 +99,17 @@ const onboardingScreens = [
     title: 'Choose Your Fasting Method',
     subtitle: 'Select your preferred approach',
     icon: Target,
-    content: 'Pick the fasting method that works best for your lifestyle. You can always change this later in settings as you progress.',
+    content:
+      'Pick the fasting method that works best for your lifestyle. You can always change this later in settings as you progress.',
     color: '#F97316',
   },
   {
     id: 'ready',
-    title: 'You\'re All Set!',
+    title: "You're All Set!",
     subtitle: 'Ready to start your journey',
     icon: CheckCircle,
-    content: 'Congratulations! You\'re ready to begin your intermittent fasting journey. Remember, consistency is key, and we\'re here to support you every step of the way.',
+    content:
+      "Congratulations! You're ready to begin your intermittent fasting journey. Remember, consistency is key, and we're here to support you every step of the way.",
     color: '#10B981',
   },
 ];
@@ -94,7 +123,9 @@ interface UserProfile {
 
 export default function OnboardingScreen() {
   const [currentScreen, setCurrentScreen] = useState(0);
-  const [selectedMethod, setSelectedMethod] = useState<FastingMethod>(FASTING_METHODS[0]);
+  const [selectedMethod, setSelectedMethod] = useState<FastingMethod>(
+    FASTING_METHODS[0]
+  );
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: '',
@@ -102,53 +133,67 @@ export default function OnboardingScreen() {
     experience: 'beginner',
     preferredStartTime: '20:00',
   });
+  const [nameError, setNameError] = useState(false);
 
   const isLastScreen = currentScreen === onboardingScreens.length - 1;
   const isProfileScreen = onboardingScreens[currentScreen].id === 'profile';
-  const isNotificationScreen = onboardingScreens[currentScreen].id === 'notifications';
+  const isNotificationScreen =
+    onboardingScreens[currentScreen].id === 'notifications';
   const isMethodScreen = onboardingScreens[currentScreen].id === 'method';
 
   const handleNext = async () => {
+    if (isProfileScreen && !userProfile.name.trim()) {
+      Alert.alert(
+        'Name Required',
+        'Please tell us what to call you to continue.'
+      );
+      setNameError(true);
+      return;
+    }
+
     if (isNotificationScreen) {
       if (notificationsEnabled) {
         let hasPermission = await notificationService.requestPermissions();
-        
+
         // Also try web notifications if on web platform
         if (!hasPermission && Platform.OS === 'web') {
-          hasPermission = await notificationService.requestWebNotificationPermission();
+          hasPermission =
+            await notificationService.requestWebNotificationPermission();
         }
-        
+
         if (!hasPermission) {
           Alert.alert(
             'Notifications',
             Platform.OS === 'web'
               ? 'Browser notification permissions were not granted. You can enable them later in settings to get helpful reminders.'
               : 'Notification permissions were not granted. You can enable them later in settings to get helpful reminders.',
-            [{ 
-              text: 'Continue', 
-              onPress: () => {
-                setNotificationsEnabled(false);
-                setCurrentScreen(prev => prev + 1);
-              }
-            }]
+            [
+              {
+                text: 'Continue',
+                onPress: () => {
+                  setNotificationsEnabled(false);
+                  setCurrentScreen((prev) => prev + 1);
+                },
+              },
+            ]
           );
           return;
         }
       }
-      setCurrentScreen(prev => prev + 1);
+      setCurrentScreen((prev) => prev + 1);
       return;
     }
 
     if (isLastScreen) {
       completeOnboarding();
     } else {
-      setCurrentScreen(prev => prev + 1);
+      setCurrentScreen((prev) => prev + 1);
     }
   };
 
   const handlePrevious = () => {
     if (currentScreen > 0) {
-      setCurrentScreen(prev => prev - 1);
+      setCurrentScreen((prev) => prev - 1);
     }
   };
 
@@ -157,7 +202,7 @@ export default function OnboardingScreen() {
       console.log('Completing onboarding...'); // Debug log
       const settings = await storageService.getUserSettings();
       console.log('Current settings before update:', settings); // Debug log
-      
+
       await storageService.saveUserSettings({
         ...settings,
         preferredMethod: selectedMethod,
@@ -166,7 +211,7 @@ export default function OnboardingScreen() {
         fastingEndNotification: notificationsEnabled,
         onboardingCompleted: true,
       });
-      
+
       console.log('Onboarding completed, checking paywall status...'); // Debug log
       // Only show paywall to first-time users who haven't seen it
       if (!settings.paywallSeen) {
@@ -202,9 +247,12 @@ export default function OnboardingScreen() {
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>What should we call you?</Text>
         <TextInput
-          style={styles.textInput}
+          style={[styles.textInput, nameError && styles.errorInput]}
           value={userProfile.name}
-          onChangeText={(text) => setUserProfile(prev => ({ ...prev, name: text }))}
+          onChangeText={(text) => {
+            if (nameError) setNameError(false);
+            setUserProfile((prev) => ({ ...prev, name: text }));
+          }}
           placeholder="Enter your name"
           placeholderTextColor="#9CA3AF"
         />
@@ -223,15 +271,19 @@ export default function OnboardingScreen() {
               key={option.id}
               style={[
                 styles.optionCard,
-                userProfile.goal === option.id && styles.selectedOption
+                userProfile.goal === option.id && styles.selectedOption,
               ]}
-              onPress={() => setUserProfile(prev => ({ ...prev, goal: option.id as any }))}
+              onPress={() =>
+                setUserProfile((prev) => ({ ...prev, goal: option.id as any }))
+              }
             >
               <Text style={styles.optionIcon}>{option.icon}</Text>
-              <Text style={[
-                styles.optionText,
-                userProfile.goal === option.id && styles.selectedOptionText
-              ]}>
+              <Text
+                style={[
+                  styles.optionText,
+                  userProfile.goal === option.id && styles.selectedOptionText,
+                ]}
+              >
                 {option.label}
               </Text>
             </TouchableOpacity>
@@ -251,14 +303,23 @@ export default function OnboardingScreen() {
               key={level.id}
               style={[
                 styles.experienceButton,
-                userProfile.experience === level.id && styles.selectedExperience
+                userProfile.experience === level.id &&
+                  styles.selectedExperience,
               ]}
-              onPress={() => setUserProfile(prev => ({ ...prev, experience: level.id as any }))}
+              onPress={() =>
+                setUserProfile((prev) => ({
+                  ...prev,
+                  experience: level.id as any,
+                }))
+              }
             >
-              <Text style={[
-                styles.experienceText,
-                userProfile.experience === level.id && styles.selectedExperienceText
-              ]}>
+              <Text
+                style={[
+                  styles.experienceText,
+                  userProfile.experience === level.id &&
+                    styles.selectedExperienceText,
+                ]}
+              >
                 {level.label}
               </Text>
             </TouchableOpacity>
@@ -274,22 +335,30 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           style={[
             styles.notificationCard,
-            notificationsEnabled && styles.selectedNotification
+            notificationsEnabled && styles.selectedNotification,
           ]}
           onPress={() => setNotificationsEnabled(true)}
         >
-          <Bell size={24} color={notificationsEnabled ? '#FFFFFF' : '#06B6D4'} />
-          <Text style={[
-            styles.notificationTitle,
-            notificationsEnabled && styles.selectedNotificationText
-          ]}>
+          <Bell
+            size={24}
+            color={notificationsEnabled ? '#FFFFFF' : '#06B6D4'}
+          />
+          <Text
+            style={[
+              styles.notificationTitle,
+              notificationsEnabled && styles.selectedNotificationText,
+            ]}
+          >
             Enable Notifications
           </Text>
-          <Text style={[
-            styles.notificationDescription,
-            notificationsEnabled && styles.selectedNotificationText
-          ]}>
-            Get helpful reminders for fasting start/end times and motivational messages
+          <Text
+            style={[
+              styles.notificationDescription,
+              notificationsEnabled && styles.selectedNotificationText,
+            ]}
+          >
+            Get helpful reminders for fasting start/end times and motivational
+            messages
           </Text>
         </TouchableOpacity>
       </View>
@@ -298,21 +367,28 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           style={[
             styles.notificationCard,
-            !notificationsEnabled && styles.selectedNotification
+            !notificationsEnabled && styles.selectedNotification,
           ]}
           onPress={() => setNotificationsEnabled(false)}
         >
-          <Bell size={24} color={!notificationsEnabled ? '#FFFFFF' : '#9CA3AF'} />
-          <Text style={[
-            styles.notificationTitle,
-            !notificationsEnabled && styles.selectedNotificationText
-          ]}>
+          <Bell
+            size={24}
+            color={!notificationsEnabled ? '#FFFFFF' : '#9CA3AF'}
+          />
+          <Text
+            style={[
+              styles.notificationTitle,
+              !notificationsEnabled && styles.selectedNotificationText,
+            ]}
+          >
             Skip for Now
           </Text>
-          <Text style={[
-            styles.notificationDescription,
-            !notificationsEnabled && styles.selectedNotificationText
-          ]}>
+          <Text
+            style={[
+              styles.notificationDescription,
+              !notificationsEnabled && styles.selectedNotificationText,
+            ]}
+          >
             You can enable notifications later in settings
           </Text>
         </TouchableOpacity>
@@ -345,7 +421,12 @@ export default function OnboardingScreen() {
         )}
 
         <View style={styles.header}>
-          <View style={[styles.iconContainer, { backgroundColor: screen.color + '20' }]}>
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: screen.color + '20' },
+            ]}
+          >
             <IconComponent size={48} color={screen.color} />
           </View>
           <Text style={styles.title}>{screen.title}</Text>
@@ -353,18 +434,20 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.body}>
-          {isProfileScreen ? renderProfileScreen() :
-           isNotificationScreen ? renderNotificationScreen() :
-           screen.id === 'benefits' ? renderBenefitsScreen() :
-           isMethodScreen ? (
+          {isProfileScreen ? (
+            renderProfileScreen()
+          ) : isNotificationScreen ? (
+            renderNotificationScreen()
+          ) : screen.id === 'benefits' ? (
+            renderBenefitsScreen()
+          ) : isMethodScreen ? (
             <View style={styles.methodSelection}>
               <Text style={styles.methodIntro}>
-                {userProfile.experience === 'beginner' 
+                {userProfile.experience === 'beginner'
                   ? 'We recommend starting with 16:8 for beginners, but feel free to choose what feels right for you.'
-                  : 'Choose the method that best fits your experience and lifestyle.'
-                }
+                  : 'Choose the method that best fits your experience and lifestyle.'}
               </Text>
-              <ScrollView 
+              <ScrollView
                 style={styles.methodScrollView}
                 contentContainerStyle={styles.methodScrollContent}
                 showsVerticalScrollIndicator={true}
@@ -391,8 +474,14 @@ export default function OnboardingScreen() {
                 key={index}
                 style={[
                   styles.progressDot,
-                  index === currentScreen && [styles.activeDot, { backgroundColor: screen.color }],
-                  index < currentScreen && [styles.completedDot, { backgroundColor: screen.color }],
+                  index === currentScreen && [
+                    styles.activeDot,
+                    { backgroundColor: screen.color },
+                  ],
+                  index < currentScreen && [
+                    styles.completedDot,
+                    { backgroundColor: screen.color },
+                  ],
                 ]}
               />
             ))}
@@ -400,16 +489,24 @@ export default function OnboardingScreen() {
 
           <View style={styles.buttonContainer}>
             {currentScreen > 0 && (
-              <TouchableOpacity style={styles.backButton} onPress={handlePrevious}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={handlePrevious}
+              >
                 <ArrowLeft size={20} color="#6B7280" />
                 <Text style={styles.backButtonText}>Back</Text>
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity 
-              style={[styles.nextButton, { backgroundColor: screen.color }]} 
+            <TouchableOpacity
+              style={[
+                styles.nextButton,
+                { backgroundColor: screen.color },
+                isProfileScreen &&
+                  !userProfile.name.trim() &&
+                  styles.disabledButton,
+              ]}
               onPress={handleNext}
-              disabled={isProfileScreen && !userProfile.name.trim()}
             >
               <Text style={styles.nextButtonText}>
                 {isLastScreen ? 'Start Fasting!' : 'Continue'}
@@ -711,5 +808,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  errorInput: {
+    borderColor: '#EF4444',
   },
 });

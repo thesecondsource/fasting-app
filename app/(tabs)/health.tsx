@@ -1,7 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Modal, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Droplets, Scale, Zap, Heart, Moon, Plus, Check, Clock, Lightbulb, ChevronDown, ChevronUp, BookOpen, Search, Filter, X, CreditCard as Edit3, Trash2, Calendar } from 'lucide-react-native';
+import {
+  Droplets,
+  Scale,
+  Zap,
+  Heart,
+  Moon,
+  Plus,
+  Check,
+  Clock,
+  Lightbulb,
+  ChevronDown,
+  ChevronUp,
+  BookOpen,
+  Search,
+  Filter,
+  X,
+  CreditCard as Edit3,
+  Trash2,
+  Calendar,
+} from 'lucide-react-native';
 import { HealthMetrics, JournalEntry } from '@/types';
 import { storageService } from '@/utils/storage';
 import { dateUtils } from '@/utils/dateUtils';
@@ -14,7 +43,7 @@ const moodEmojis = {
   good: '😊',
   okay: '😐',
   bad: '😞',
-  terrible: '😢'
+  terrible: '😢',
 };
 
 const moodColors = {
@@ -22,13 +51,13 @@ const moodColors = {
   good: '#3B82F6',
   okay: '#F59E0B',
   bad: '#EF4444',
-  terrible: '#7C2D12'
+  terrible: '#7C2D12',
 };
 
 export default function HealthScreen() {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'metrics' | 'journal'>('metrics');
-  
+
   // Health Metrics State
   const [todayMetrics, setTodayMetrics] = useState<HealthMetrics>({
     id: '',
@@ -40,6 +69,7 @@ export default function HealthScreen() {
   });
 
   const [weight, setWeight] = useState('');
+  const [weightError, setWeightError] = useState<string | null>(null);
   const [waterInput, setWaterInput] = useState('');
   const [allMetrics, setAllMetrics] = useState<HealthMetrics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,11 +86,12 @@ export default function HealthScreen() {
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMoodFilter, setSelectedMoodFilter] = useState<string>('all');
-  
+
   // Journal Form State
   const [journalTitle, setJournalTitle] = useState('');
   const [journalContent, setJournalContent] = useState('');
-  const [selectedMood, setSelectedMood] = useState<JournalEntry['mood']>('okay');
+  const [selectedMood, setSelectedMood] =
+    useState<JournalEntry['mood']>('okay');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
 
@@ -71,14 +102,14 @@ export default function HealthScreen() {
   }, []);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
+    let interval: ReturnType<typeof setInterval>;
+
     if (isLocked) {
       interval = setInterval(() => {
         updateTimeUntilUnlock();
       }, 60000); // Update every minute
     }
-    
+
     return () => {
       if (interval) {
         clearInterval(interval);
@@ -95,7 +126,7 @@ export default function HealthScreen() {
         const nextMidnight = new Date(lastSave);
         nextMidnight.setDate(nextMidnight.getDate() + 1);
         nextMidnight.setHours(0, 0, 0, 0);
-        
+
         if (now < nextMidnight) {
           setIsLocked(true);
           updateTimeUntilUnlock();
@@ -108,18 +139,18 @@ export default function HealthScreen() {
 
   const updateTimeUntilUnlock = () => {
     if (!lastSaveTime) return;
-    
+
     const now = new Date();
     const nextMidnight = new Date(lastSaveTime);
     nextMidnight.setDate(nextMidnight.getDate() + 1);
     nextMidnight.setHours(0, 0, 0, 0);
-    
+
     if (now >= nextMidnight) {
       setIsLocked(false);
       setTimeUntilUnlock('');
       return;
     }
-    
+
     const timeRemaining = dateUtils.formatTimeRemaining(nextMidnight, now);
     setTimeUntilUnlock(timeRemaining);
   };
@@ -128,9 +159,9 @@ export default function HealthScreen() {
     try {
       const metrics = await storageService.getHealthMetrics();
       setAllMetrics(metrics);
-      
+
       // Find today's metrics
-      const today = metrics.find(m => dateUtils.isToday(new Date(m.date)));
+      const today = metrics.find((m) => dateUtils.isToday(new Date(m.date)));
       if (today) {
         setTodayMetrics(today);
         setWeight(today.weight?.toString() || '');
@@ -152,17 +183,55 @@ export default function HealthScreen() {
     }
   };
 
+  const validateWeight = (value: string): string | null => {
+    if (value.trim() === '') {
+      return null; // Empty is valid (optional field)
+    }
+    const num = Number(value);
+    if (isNaN(num)) {
+      return 'Please enter a valid number.';
+    }
+    if (num <= 0) {
+      return 'Weight must be a positive number.';
+    }
+    return null;
+  };
+
+  const handleWeightChange = (text: string) => {
+    setWeight(text);
+    // Lenient live validation: only check for invalid characters/format
+    // to allow intermediate states like "0."
+    const validPattern = /^[0-9.]*$/;
+    if (text !== '' && !validPattern.test(text)) {
+      setWeightError('Only numbers and a decimal point are allowed.');
+    } else if ((text.match(/\./g) || []).length > 1) {
+      setWeightError('Invalid format (multiple decimal points).');
+    } else {
+      setWeightError(null); // Clear format error as user types correctly
+    }
+  };
+
   const handleSaveRequest = () => {
+    if (isLocked) return; // Don't do anything if locked
+
+    // Perform final, strict validation on save
+    const finalWeightError = validateWeight(weight);
+    if (finalWeightError) {
+      setWeightError(finalWeightError); // Show error on the input
+      Alert.alert('Invalid Input', finalWeightError);
+      return;
+    }
+
     setShowConfirmation(true);
   };
 
   const confirmSave = async () => {
     setShowConfirmation(false);
-    
+
     try {
       // Generate consistent ID based on date for same-day updates
       const consistentId = `health_${new Date().toDateString()}`;
-      
+
       const metrics: HealthMetrics = {
         id: consistentId,
         date: new Date(),
@@ -175,12 +244,12 @@ export default function HealthScreen() {
 
       await storageService.saveHealthMetrics(metrics);
       await storageService.saveLastHealthMetricsSave(new Date());
-      
+
       setShowSuccess(true);
       setIsLocked(true);
       setLastSaveTime(new Date());
       updateTimeUntilUnlock();
-      
+
       await loadHealthData();
     } catch (error) {
       console.error('Error saving health metrics:', error);
@@ -192,10 +261,13 @@ export default function HealthScreen() {
     setShowSuccess(false);
   };
 
-  const updateRating = (field: 'energyLevel' | 'mood' | 'sleepQuality', value: number) => {
+  const updateRating = (
+    field: 'energyLevel' | 'mood' | 'sleepQuality',
+    value: number
+  ) => {
     if (isLocked) return;
-    
-    setTodayMetrics(prev => ({
+
+    setTodayMetrics((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -203,7 +275,7 @@ export default function HealthScreen() {
 
   const addWater = (amount: number) => {
     if (isLocked) return;
-    
+
     const newAmount = (parseInt(waterInput) || 0) + amount;
     setWaterInput(newAmount.toString());
   };
@@ -231,7 +303,7 @@ export default function HealthScreen() {
         title: journalTitle.trim(),
         content: journalContent.trim(),
         mood: selectedMood,
-        tags: tags.filter(tag => tag.trim().length > 0),
+        tags: tags.filter((tag) => tag.trim().length > 0),
       };
 
       if (editingEntry) {
@@ -289,25 +361,29 @@ export default function HealthScreen() {
   };
 
   const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+    setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
-  const filteredJournalEntries = journalEntries.filter(entry => {
-    const matchesSearch = entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesMood = selectedMoodFilter === 'all' || entry.mood === selectedMoodFilter;
-    
+  const filteredJournalEntries = journalEntries.filter((entry) => {
+    const matchesSearch =
+      entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+    const matchesMood =
+      selectedMoodFilter === 'all' || entry.mood === selectedMoodFilter;
+
     return matchesSearch && matchesMood;
   });
 
-  const RatingSelector = ({ 
-    title, 
-    value, 
-    onValueChange, 
+  const RatingSelector = ({
+    title,
+    value,
+    onValueChange,
     icon: Icon,
-    color 
+    color,
   }: {
     title: string;
     value: number;
@@ -327,18 +403,23 @@ export default function HealthScreen() {
             style={[
               styles.ratingButton,
               { borderColor: colors.border },
-              value === rating && { backgroundColor: color, borderColor: color },
-              isLocked && styles.disabledButton
+              value === rating && {
+                backgroundColor: color,
+                borderColor: color,
+              },
+              isLocked && styles.disabledButton,
             ]}
             onPress={() => onValueChange(rating)}
             disabled={isLocked}
           >
-            <Text style={[
-              styles.ratingButtonText,
-              { color: colors.text },
-              value === rating && { color: '#FFFFFF' },
-              isLocked && styles.disabledText
-            ]}>
+            <Text
+              style={[
+                styles.ratingButtonText,
+                { color: colors.text },
+                value === rating && { color: '#FFFFFF' },
+                isLocked && styles.disabledText,
+              ]}
+            >
               {rating}
             </Text>
           </TouchableOpacity>
@@ -349,49 +430,77 @@ export default function HealthScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading health data...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading health data...
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Health & Wellness</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Track your metrics and journal your journey</Text>
-        
+        <Text style={[styles.title, { color: colors.text }]}>
+          Health & Wellness
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Track your metrics and journal your journey
+        </Text>
+
         {/* Tab Selector */}
-        <View style={[styles.tabContainer, { backgroundColor: colors.surface }]}> 
+        <View
+          style={[styles.tabContainer, { backgroundColor: colors.surface }]}
+        >
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'metrics' && { backgroundColor: colors.primary }
+              activeTab === 'metrics' && { backgroundColor: colors.primary },
             ]}
             onPress={() => setActiveTab('metrics')}
           >
-            <Heart size={16} color={activeTab === 'metrics' ? '#FFFFFF' : colors.textSecondary} />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'metrics' ? '#FFFFFF' : colors.textSecondary }
-            ]}>
+            <Heart
+              size={16}
+              color={activeTab === 'metrics' ? '#FFFFFF' : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color:
+                    activeTab === 'metrics' ? '#FFFFFF' : colors.textSecondary,
+                },
+              ]}
+            >
               Metrics
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'journal' && { backgroundColor: colors.primary }
+              activeTab === 'journal' && { backgroundColor: colors.primary },
             ]}
             onPress={() => setActiveTab('journal')}
           >
-            <BookOpen size={16} color={activeTab === 'journal' ? '#FFFFFF' : colors.textSecondary} />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'journal' ? '#FFFFFF' : colors.textSecondary }
-            ]}>
+            <BookOpen
+              size={16}
+              color={activeTab === 'journal' ? '#FFFFFF' : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color:
+                    activeTab === 'journal' ? '#FFFFFF' : colors.textSecondary,
+                },
+              ]}
+            >
               Journal
             </Text>
           </TouchableOpacity>
@@ -400,217 +509,365 @@ export default function HealthScreen() {
 
       {activeTab === 'metrics' ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Scale size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Weight</Text>
-          </View>
-          <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              value={weight}
-              onChangeText={setWeight}
-              placeholder="Enter weight (kg)"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="numeric"
-              editable={!isLocked}
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Droplets size={20} color={colors.info} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Water Intake</Text>
-          </View>
-          <View style={styles.waterContainer}>
-            <View style={[styles.waterInputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Scale size={20} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Weight
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: weightError ? colors.error : colors.border,
+                },
+              ]}
+            >
               <TextInput
                 style={[styles.input, { color: colors.text }]}
-                value={waterInput}
-                onChangeText={setWaterInput}
-                placeholder="0"
+                value={weight}
+                onChangeText={handleWeightChange}
+                placeholder="Enter weight (kg)"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
                 editable={!isLocked}
               />
-              <Text style={[styles.waterUnit, { color: colors.textSecondary }]}>ml</Text>
             </View>
-            <View style={styles.waterButtons}>
-              <TouchableOpacity
+            {weightError && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {weightError}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Droplets size={20} color={colors.info} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Water Intake
+              </Text>
+            </View>
+            <View style={styles.waterContainer}>
+              <View
                 style={[
-                  styles.waterButton, 
-                  { backgroundColor: colors.info + '20', borderColor: colors.info + '40' },
-                  isLocked && styles.disabledButton
+                  styles.waterInputContainer,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
                 ]}
-                onPress={() => addWater(250)}
-                disabled={isLocked}
               >
-                <Plus size={16} color={colors.info} />
-                <Text style={[styles.waterButtonText, { color: colors.info }]}>250ml</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.waterButton, 
-                  { backgroundColor: colors.info + '20', borderColor: colors.info + '40' },
-                  isLocked && styles.disabledButton
-                ]}
-                onPress={() => addWater(500)}
-                disabled={isLocked}
-              >
-                <Plus size={16} color={colors.info} />
-                <Text style={[styles.waterButtonText, { color: colors.info }]}>500ml</Text>
-              </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  value={waterInput}
+                  onChangeText={setWaterInput}
+                  placeholder="0"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="numeric"
+                  editable={!isLocked}
+                />
+                <Text
+                  style={[styles.waterUnit, { color: colors.textSecondary }]}
+                >
+                  ml
+                </Text>
+              </View>
+              <View style={styles.waterButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.waterButton,
+                    {
+                      backgroundColor: colors.info + '20',
+                      borderColor: colors.info + '40',
+                    },
+                    isLocked && styles.disabledButton,
+                  ]}
+                  onPress={() => addWater(250)}
+                  disabled={isLocked}
+                >
+                  <Plus size={16} color={colors.info} />
+                  <Text
+                    style={[styles.waterButtonText, { color: colors.info }]}
+                  >
+                    250ml
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.waterButton,
+                    {
+                      backgroundColor: colors.info + '20',
+                      borderColor: colors.info + '40',
+                    },
+                    isLocked && styles.disabledButton,
+                  ]}
+                  onPress={() => addWater(500)}
+                  disabled={isLocked}
+                >
+                  <Plus size={16} color={colors.info} />
+                  <Text
+                    style={[styles.waterButtonText, { color: colors.info }]}
+                  >
+                    500ml
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <RatingSelector
-            title="Energy Level"
-            value={todayMetrics.energyLevel}
-            onValueChange={(value) => updateRating('energyLevel', value)}
-            icon={Zap}
-            color={colors.warning}
-          />
-        </View>
+          <View style={styles.section}>
+            <RatingSelector
+              title="Energy Level"
+              value={todayMetrics.energyLevel}
+              onValueChange={(value) => updateRating('energyLevel', value)}
+              icon={Zap}
+              color={colors.warning}
+            />
+          </View>
 
-        <View style={styles.section}>
-          <RatingSelector
-            title="Mood"
-            value={todayMetrics.mood}
-            onValueChange={(value) => updateRating('mood', value)}
-            icon={Heart}
-            color={colors.error}
-          />
-        </View>
+          <View style={styles.section}>
+            <RatingSelector
+              title="Mood"
+              value={todayMetrics.mood}
+              onValueChange={(value) => updateRating('mood', value)}
+              icon={Heart}
+              color={colors.error}
+            />
+          </View>
 
-        <View style={styles.section}>
-          <RatingSelector
-            title="Sleep Quality"
-            value={todayMetrics.sleepQuality}
-            onValueChange={(value) => updateRating('sleepQuality', value)}
-            icon={Moon}
-            color="#8B5CF6"
-          />
-        </View>
+          <View style={styles.section}>
+            <RatingSelector
+              title="Sleep Quality"
+              value={todayMetrics.sleepQuality}
+              onValueChange={(value) => updateRating('sleepQuality', value)}
+              icon={Moon}
+              color="#8B5CF6"
+            />
+          </View>
 
-        <TouchableOpacity 
-          style={[
-            styles.saveButton, 
-            { backgroundColor: isLocked ? colors.surface : colors.primary },
-            isLocked && { borderColor: colors.border }
-          ]} 
-          onPress={handleSaveRequest}
-          disabled={isLocked}
-        >
-          {isLocked ? (
-            <>
-              <Clock size={16} color={colors.textTertiary} />
-              <Text style={[styles.disabledSaveButtonText, { color: colors.textTertiary }]}>
-                Locked until midnight ({timeUntilUnlock})
-              </Text>
-            </>
-          ) : (
-            <Text style={[styles.saveButtonText, { color: '#FFFFFF' }]}>Save Today's Metrics</Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Fasting Tips Section */}
-        <View style={styles.tipsSection}>
-          <TouchableOpacity 
-            style={[styles.tipsHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => setShowTips(!showTips)}
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              {
+                backgroundColor:
+                  isLocked || !!weightError ? colors.surface : colors.primary,
+              },
+              (isLocked || !!weightError) && {
+                borderColor: colors.border,
+                borderWidth: 1,
+              },
+            ]}
+            onPress={handleSaveRequest}
+            // The button is visually disabled but remains tappable to show alerts
           >
-            <View style={styles.tipsHeaderContent}>
-              <Lightbulb size={20} color={colors.warning} />
-              <Text style={[styles.tipsTitle, { color: colors.text }]}>Fasting Tips & Best Practices</Text>
-            </View>
-            {showTips ? (
-              <ChevronUp size={20} color={colors.textSecondary} />
+            {isLocked ? (
+              <>
+                <Clock size={16} color={colors.textTertiary} />
+                <Text
+                  style={[
+                    styles.disabledSaveButtonText,
+                    { color: colors.textTertiary },
+                  ]}
+                >
+                  Locked until midnight ({timeUntilUnlock})
+                </Text>
+              </>
             ) : (
-              <ChevronDown size={20} color={colors.textSecondary} />
+              <Text style={[styles.saveButtonText, { color: '#FFFFFF' }]}>
+                Save Today's Metrics
+              </Text>
             )}
           </TouchableOpacity>
 
-          {showTips && (
-            <View style={[styles.tipsContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={styles.tipItem}>
-                <View style={[styles.tipIcon, { backgroundColor: colors.info + '20' }]}>
-                  <Droplets size={16} color={colors.info} />
-                </View>
-                <View style={styles.tipText}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Stay Hydrated</Text>
-                  <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
-                    Drink plenty of water during fasting. Aim for 8-10 glasses daily. Herbal teas and black coffee are also allowed.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.tipItem}>
-                <View style={[styles.tipIcon, { backgroundColor: colors.success + '20' }]}>
-                  <Zap size={16} color={colors.success} />
-                </View>
-                <View style={styles.tipText}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Start Gradually</Text>
-                  <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
-                    Begin with shorter fasting windows (12-14 hours) and gradually increase as your body adapts.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.tipItem}>
-                <View style={[styles.tipIcon, { backgroundColor: colors.warning + '20' }]}>
-                  <Heart size={16} color={colors.warning} />
-                </View>
-                <View style={styles.tipText}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Listen to Your Body</Text>
-                  <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
-                    If you feel dizzy, weak, or unwell, break your fast. Your health comes first.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.tipItem}>
-                <View style={[styles.tipIcon, { backgroundColor: '#8B5CF6' + '20' }]}>
-                  <Moon size={16} color="#8B5CF6" />
-                </View>
-                <View style={styles.tipText}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Quality Sleep</Text>
-                  <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
-                    Maintain 7-9 hours of quality sleep. Poor sleep can affect hunger hormones and make fasting harder.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.tipItem}>
-                <View style={[styles.tipIcon, { backgroundColor: colors.primary + '20' }]}>
-                  <Scale size={16} color={colors.primary} />
-                </View>
-                <View style={styles.tipText}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Break Fast Mindfully</Text>
-                  <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
-                    Start with light, nutritious foods. Avoid overeating and choose whole foods over processed ones.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.tipWarning, { backgroundColor: colors.error + '10', borderColor: colors.error + '30' }]}>
-                <Text style={[styles.tipWarningText, { color: colors.error }]}>
-                  ⚠️ Important: Consult with a healthcare provider before starting any fasting regimen, especially if you have medical conditions, are pregnant, or taking medications.
+          {/* Fasting Tips Section */}
+          <View style={styles.tipsSection}>
+            <TouchableOpacity
+              style={[
+                styles.tipsHeader,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+              onPress={() => setShowTips(!showTips)}
+            >
+              <View style={styles.tipsHeaderContent}>
+                <Lightbulb size={20} color={colors.warning} />
+                <Text style={[styles.tipsTitle, { color: colors.text }]}>
+                  Fasting Tips & Best Practices
                 </Text>
               </View>
-            </View>
-          )}
-        </View>
+              {showTips ? (
+                <ChevronUp size={20} color={colors.textSecondary} />
+              ) : (
+                <ChevronDown size={20} color={colors.textSecondary} />
+              )}
+            </TouchableOpacity>
 
+            {showTips && (
+              <View
+                style={[
+                  styles.tipsContent,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.tipItem}>
+                  <View
+                    style={[
+                      styles.tipIcon,
+                      { backgroundColor: colors.info + '20' },
+                    ]}
+                  >
+                    <Droplets size={16} color={colors.info} />
+                  </View>
+                  <View style={styles.tipText}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                      Stay Hydrated
+                    </Text>
+                    <Text
+                      style={[
+                        styles.tipDescription,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Drink plenty of water during fasting. Aim for 8-10 glasses
+                      daily. Herbal teas and black coffee are also allowed.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tipItem}>
+                  <View
+                    style={[
+                      styles.tipIcon,
+                      { backgroundColor: colors.success + '20' },
+                    ]}
+                  >
+                    <Zap size={16} color={colors.success} />
+                  </View>
+                  <View style={styles.tipText}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                      Start Gradually
+                    </Text>
+                    <Text
+                      style={[
+                        styles.tipDescription,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Begin with shorter fasting windows (12-14 hours) and
+                      gradually increase as your body adapts.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tipItem}>
+                  <View
+                    style={[
+                      styles.tipIcon,
+                      { backgroundColor: colors.warning + '20' },
+                    ]}
+                  >
+                    <Heart size={16} color={colors.warning} />
+                  </View>
+                  <View style={styles.tipText}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                      Listen to Your Body
+                    </Text>
+                    <Text
+                      style={[
+                        styles.tipDescription,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      If you feel dizzy, weak, or unwell, break your fast. Your
+                      health comes first.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tipItem}>
+                  <View
+                    style={[
+                      styles.tipIcon,
+                      { backgroundColor: '#8B5CF6' + '20' },
+                    ]}
+                  >
+                    <Moon size={16} color="#8B5CF6" />
+                  </View>
+                  <View style={styles.tipText}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                      Quality Sleep
+                    </Text>
+                    <Text
+                      style={[
+                        styles.tipDescription,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Maintain 7-9 hours of quality sleep. Poor sleep can affect
+                      hunger hormones and make fasting harder.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tipItem}>
+                  <View
+                    style={[
+                      styles.tipIcon,
+                      { backgroundColor: colors.primary + '20' },
+                    ]}
+                  >
+                    <Scale size={16} color={colors.primary} />
+                  </View>
+                  <View style={styles.tipText}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                      Break Fast Mindfully
+                    </Text>
+                    <Text
+                      style={[
+                        styles.tipDescription,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Start with light, nutritious foods. Avoid overeating and
+                      choose whole foods over processed ones.
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={[
+                    styles.tipWarning,
+                    {
+                      backgroundColor: colors.error + '10',
+                      borderColor: colors.error + '30',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.tipWarningText, { color: colors.error }]}
+                  >
+                    ⚠️ Important: Consult with a healthcare provider before
+                    starting any fasting regimen, especially if you have medical
+                    conditions, are pregnant, or taking medications.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
         </ScrollView>
       ) : null}
       {activeTab === 'journal' ? (
         <View style={styles.journalContainer}>
           <View style={styles.journalHeader}>
             <TouchableOpacity
-              style={[styles.addJournalButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.addJournalButton,
+                { backgroundColor: colors.primary },
+              ]}
               onPress={() => setShowJournalModal(true)}
             >
               <Plus size={20} color="#FFFFFF" />
@@ -619,7 +876,12 @@ export default function HealthScreen() {
           </View>
 
           <View style={styles.journalSearchContainer}>
-            <View style={[styles.journalSearchInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.journalSearchInput,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <Search size={16} color={colors.textSecondary} />
               <TextInput
                 style={[styles.journalSearchText, { color: colors.text }]}
@@ -629,9 +891,9 @@ export default function HealthScreen() {
                 onChangeText={setSearchQuery}
               />
             </View>
-            
-            <ScrollView 
-              horizontal 
+
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.journalFilterContainer}
               contentContainerStyle={styles.journalFilterContent}
@@ -639,34 +901,61 @@ export default function HealthScreen() {
               <TouchableOpacity
                 style={[
                   styles.journalFilterButton,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  selectedMoodFilter === 'all' && { backgroundColor: colors.primary, borderColor: colors.primary }
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                  selectedMoodFilter === 'all' && {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  },
                 ]}
                 onPress={() => setSelectedMoodFilter('all')}
               >
-                <Text style={[
-                  styles.journalFilterText,
-                  { color: selectedMoodFilter === 'all' ? '#FFFFFF' : colors.textSecondary }
-                ]}>
+                <Text
+                  style={[
+                    styles.journalFilterText,
+                    {
+                      color:
+                        selectedMoodFilter === 'all'
+                          ? '#FFFFFF'
+                          : colors.textSecondary,
+                    },
+                  ]}
+                >
                   All
                 </Text>
               </TouchableOpacity>
-              
+
               {Object.entries(moodEmojis).map(([mood, emoji]) => (
                 <TouchableOpacity
                   key={mood}
                   style={[
                     styles.journalFilterButton,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                    selectedMoodFilter === mood && { backgroundColor: moodColors[mood as keyof typeof moodColors], borderColor: moodColors[mood as keyof typeof moodColors] }
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                    selectedMoodFilter === mood && {
+                      backgroundColor:
+                        moodColors[mood as keyof typeof moodColors],
+                      borderColor: moodColors[mood as keyof typeof moodColors],
+                    },
                   ]}
                   onPress={() => setSelectedMoodFilter(mood)}
                 >
                   <Text style={styles.journalFilterEmoji}>{emoji}</Text>
-                  <Text style={[
-                    styles.journalFilterText,
-                    { color: selectedMoodFilter === mood ? '#FFFFFF' : colors.textSecondary }
-                  ]}>
+                  <Text
+                    style={[
+                      styles.journalFilterText,
+                      {
+                        color:
+                          selectedMoodFilter === mood
+                            ? '#FFFFFF'
+                            : colors.textSecondary,
+                      },
+                    ]}
+                  >
                     {mood.charAt(0).toUpperCase() + mood.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -678,58 +967,129 @@ export default function HealthScreen() {
             {filteredJournalEntries.length === 0 ? (
               <View style={styles.journalEmptyState}>
                 <BookOpen size={48} color={colors.textTertiary} />
-                <Text style={[styles.journalEmptyStateText, { color: colors.textSecondary }]}>
-                  {searchQuery || selectedMoodFilter !== 'all' ? 'No entries match your search' : 'No journal entries yet'}
+                <Text
+                  style={[
+                    styles.journalEmptyStateText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {searchQuery || selectedMoodFilter !== 'all'
+                    ? 'No entries match your search'
+                    : 'No journal entries yet'}
                 </Text>
-                <Text style={[styles.journalEmptyStateSubtext, { color: colors.textTertiary }]}>
-                  {searchQuery || selectedMoodFilter !== 'all' ? 'Try adjusting your filters' : 'Start documenting your fasting journey'}
+                <Text
+                  style={[
+                    styles.journalEmptyStateSubtext,
+                    { color: colors.textTertiary },
+                  ]}
+                >
+                  {searchQuery || selectedMoodFilter !== 'all'
+                    ? 'Try adjusting your filters'
+                    : 'Start documenting your fasting journey'}
                 </Text>
               </View>
             ) : (
               filteredJournalEntries
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .sort(
+                  (a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                )
                 .map((entry) => (
-                  <View key={entry.id} style={[styles.journalEntryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View
+                    key={entry.id}
+                    style={[
+                      styles.journalEntryCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
                     <View style={styles.journalEntryHeader}>
                       <View style={styles.journalEntryInfo}>
-                        <Text style={[styles.journalEntryTitle, { color: colors.text }]}>{entry.title}</Text>
+                        <Text
+                          style={[
+                            styles.journalEntryTitle,
+                            { color: colors.text },
+                          ]}
+                        >
+                          {entry.title}
+                        </Text>
                         <View style={styles.journalEntryMeta}>
-                          <Text style={[styles.journalEntryDate, { color: colors.textSecondary }]}>
+                          <Text
+                            style={[
+                              styles.journalEntryDate,
+                              { color: colors.textSecondary },
+                            ]}
+                          >
                             {dateUtils.formatDate(new Date(entry.date))}
                           </Text>
                           <View style={styles.journalMoodIndicator}>
-                            <Text style={styles.journalMoodEmoji}>{moodEmojis[entry.mood]}</Text>
-                            <Text style={[styles.journalMoodText, { color: moodColors[entry.mood] }]}>
-                              {entry.mood.charAt(0).toUpperCase() + entry.mood.slice(1)}
+                            <Text style={styles.journalMoodEmoji}>
+                              {moodEmojis[entry.mood]}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.journalMoodText,
+                                { color: moodColors[entry.mood] },
+                              ]}
+                            >
+                              {entry.mood.charAt(0).toUpperCase() +
+                                entry.mood.slice(1)}
                             </Text>
                           </View>
                         </View>
                       </View>
                       <View style={styles.journalEntryActions}>
                         <TouchableOpacity
-                          style={[styles.journalActionButton, { backgroundColor: colors.primary + '20' }]}
+                          style={[
+                            styles.journalActionButton,
+                            { backgroundColor: colors.primary + '20' },
+                          ]}
                           onPress={() => handleJournalEdit(entry)}
                         >
                           <Edit3 size={14} color={colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[styles.journalActionButton, { backgroundColor: colors.error + '20' }]}
+                          style={[
+                            styles.journalActionButton,
+                            { backgroundColor: colors.error + '20' },
+                          ]}
                           onPress={() => handleJournalDelete(entry.id)}
                         >
                           <Trash2 size={14} color={colors.error} />
                         </TouchableOpacity>
                       </View>
                     </View>
-                    
-                    <Text style={[styles.journalEntryContent, { color: colors.textSecondary }]} numberOfLines={3}>
+
+                    <Text
+                      style={[
+                        styles.journalEntryContent,
+                        { color: colors.textSecondary },
+                      ]}
+                      numberOfLines={3}
+                    >
                       {entry.content}
                     </Text>
-                    
+
                     {entry.tags.length > 0 && (
                       <View style={styles.journalTagsContainer}>
                         {entry.tags.map((tag, index) => (
-                          <View key={index} style={[styles.journalTag, { backgroundColor: colors.primary + '20' }]}>
-                            <Text style={[styles.journalTagText, { color: colors.primary }]}>#{tag}</Text>
+                          <View
+                            key={index}
+                            style={[
+                              styles.journalTag,
+                              { backgroundColor: colors.primary + '20' },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.journalTagText,
+                                { color: colors.primary },
+                              ]}
+                            >
+                              #{tag}
+                            </Text>
                           </View>
                         ))}
                       </View>
@@ -750,23 +1110,53 @@ export default function HealthScreen() {
           onRequestClose={() => setShowConfirmation(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Confirm Save</Text>
-              <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                Are you sure you want to save today's health metrics? You won't be able to edit them again until tomorrow.
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: colors.background },
+              ]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Confirm Save
+              </Text>
+              <Text
+                style={[styles.modalMessage, { color: colors.textSecondary }]}
+              >
+                Are you sure you want to save today's health metrics? You won't
+                be able to edit them again until tomorrow.
               </Text>
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={[styles.cancelButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[
+                    styles.cancelButton,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
                   onPress={() => setShowConfirmation(false)}
                 >
-                  <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                  <Text
+                    style={[
+                      styles.cancelButtonText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.confirmButton, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.confirmButton,
+                    { backgroundColor: colors.primary },
+                  ]}
                   onPress={confirmSave}
                 >
-                  <Text style={[styles.confirmButtonText, { color: '#FFFFFF' }]}>Save</Text>
+                  <Text
+                    style={[styles.confirmButtonText, { color: '#FFFFFF' }]}
+                  >
+                    Save
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -783,19 +1173,38 @@ export default function HealthScreen() {
           onRequestClose={closeSuccessModal}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-              <View style={[styles.successIcon, { backgroundColor: colors.success + '20' }]}>
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: colors.background },
+              ]}
+            >
+              <View
+                style={[
+                  styles.successIcon,
+                  { backgroundColor: colors.success + '20' },
+                ]}
+              >
                 <Check size={32} color={colors.success} />
               </View>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Success!</Text>
-              <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Success!
+              </Text>
+              <Text
+                style={[styles.modalMessage, { color: colors.textSecondary }]}
+              >
                 Today's health metrics have been successfully saved.
               </Text>
               <TouchableOpacity
-                style={[styles.successButton, { backgroundColor: colors.success }]}
+                style={[
+                  styles.successButton,
+                  { backgroundColor: colors.success },
+                ]}
                 onPress={closeSuccessModal}
               >
-                <Text style={[styles.successButtonText, { color: '#FFFFFF' }]}>OK</Text>
+                <Text style={[styles.successButtonText, { color: '#FFFFFF' }]}>
+                  OK
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -813,7 +1222,12 @@ export default function HealthScreen() {
         }}
       >
         <View style={styles.journalModalOverlay}>
-          <View style={[styles.journalModalContent, { backgroundColor: colors.background }]}>
+          <View
+            style={[
+              styles.journalModalContent,
+              { backgroundColor: colors.background },
+            ]}
+          >
             <View style={styles.journalModalHeader}>
               <Text style={[styles.journalModalTitle, { color: colors.text }]}>
                 {editingEntry ? 'Edit Entry' : 'New Journal Entry'}
@@ -828,11 +1242,22 @@ export default function HealthScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.journalModalScrollContent}>
+            <ScrollView
+              contentContainerStyle={styles.journalModalScrollContent}
+            >
               <View style={styles.journalFormGroup}>
-                <Text style={[styles.journalFormLabel, { color: colors.text }]}>Title</Text>
+                <Text style={[styles.journalFormLabel, { color: colors.text }]}>
+                  Title
+                </Text>
                 <TextInput
-                  style={[styles.journalFormInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={[
+                    styles.journalFormInput,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
                   value={journalTitle}
                   onChangeText={setJournalTitle}
                   placeholder="Enter a title for your entry"
@@ -841,23 +1266,42 @@ export default function HealthScreen() {
               </View>
 
               <View style={styles.journalFormGroup}>
-                <Text style={[styles.journalFormLabel, { color: colors.text }]}>How are you feeling?</Text>
+                <Text style={[styles.journalFormLabel, { color: colors.text }]}>
+                  How are you feeling?
+                </Text>
                 <View style={styles.journalMoodSelector}>
                   {Object.entries(moodEmojis).map(([mood, emoji]) => (
                     <TouchableOpacity
                       key={mood}
                       style={[
                         styles.journalMoodOption,
-                        { backgroundColor: colors.surface, borderColor: colors.border },
-                        selectedMood === mood && { backgroundColor: moodColors[mood as keyof typeof moodColors], borderColor: moodColors[mood as keyof typeof moodColors] }
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                        },
+                        selectedMood === mood && {
+                          backgroundColor:
+                            moodColors[mood as keyof typeof moodColors],
+                          borderColor:
+                            moodColors[mood as keyof typeof moodColors],
+                        },
                       ]}
-                      onPress={() => setSelectedMood(mood as JournalEntry['mood'])}
+                      onPress={() =>
+                        setSelectedMood(mood as JournalEntry['mood'])
+                      }
                     >
                       <Text style={styles.journalMoodOptionEmoji}>{emoji}</Text>
-                      <Text style={[
-                        styles.journalMoodOptionText,
-                        { color: selectedMood === mood ? '#FFFFFF' : colors.textSecondary }
-                      ]}>
+                      <Text
+                        style={[
+                          styles.journalMoodOptionText,
+                          {
+                            color:
+                              selectedMood === mood
+                                ? '#FFFFFF'
+                                : colors.textSecondary,
+                          },
+                        ]}
+                      >
                         {mood.charAt(0).toUpperCase() + mood.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -866,9 +1310,18 @@ export default function HealthScreen() {
               </View>
 
               <View style={styles.journalFormGroup}>
-                <Text style={[styles.journalFormLabel, { color: colors.text }]}>Content</Text>
+                <Text style={[styles.journalFormLabel, { color: colors.text }]}>
+                  Content
+                </Text>
                 <TextInput
-                  style={[styles.journalFormTextArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={[
+                    styles.journalFormTextArea,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
                   value={journalContent}
                   onChangeText={setJournalContent}
                   placeholder="Write about your fasting experience, how you're feeling, challenges, victories..."
@@ -880,10 +1333,19 @@ export default function HealthScreen() {
               </View>
 
               <View style={styles.journalFormGroup}>
-                <Text style={[styles.journalFormLabel, { color: colors.text }]}>Tags</Text>
+                <Text style={[styles.journalFormLabel, { color: colors.text }]}>
+                  Tags
+                </Text>
                 <View style={styles.journalTagInputContainer}>
                   <TextInput
-                    style={[styles.journalTagInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    style={[
+                      styles.journalTagInput,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        color: colors.text,
+                      },
+                    ]}
                     value={tagInput}
                     onChangeText={setTagInput}
                     placeholder="Add a tag"
@@ -891,22 +1353,35 @@ export default function HealthScreen() {
                     onSubmitEditing={addTag}
                   />
                   <TouchableOpacity
-                    style={[styles.journalAddTagButton, { backgroundColor: colors.primary }]}
+                    style={[
+                      styles.journalAddTagButton,
+                      { backgroundColor: colors.primary },
+                    ]}
                     onPress={addTag}
                   >
                     <Plus size={14} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
-                
+
                 {tags.length > 0 && (
                   <View style={styles.journalSelectedTags}>
                     {tags.map((tag, index) => (
                       <TouchableOpacity
                         key={index}
-                        style={[styles.journalSelectedTag, { backgroundColor: colors.primary + '20' }]}
+                        style={[
+                          styles.journalSelectedTag,
+                          { backgroundColor: colors.primary + '20' },
+                        ]}
                         onPress={() => removeTag(tag)}
                       >
-                        <Text style={[styles.journalSelectedTagText, { color: colors.primary }]}>#{tag}</Text>
+                        <Text
+                          style={[
+                            styles.journalSelectedTagText,
+                            { color: colors.primary },
+                          ]}
+                        >
+                          #{tag}
+                        </Text>
                         <X size={10} color={colors.primary} />
                       </TouchableOpacity>
                     ))}
@@ -917,16 +1392,32 @@ export default function HealthScreen() {
 
             <View style={styles.journalModalActions}>
               <TouchableOpacity
-                style={[styles.journalCancelButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[
+                  styles.journalCancelButton,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={() => {
                   setShowJournalModal(false);
                   resetJournalForm();
                 }}
               >
-                <Text style={[styles.journalCancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                <Text
+                  style={[
+                    styles.journalCancelButtonText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.journalSaveButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.journalSaveButton,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleJournalSave}
               >
                 <Text style={styles.journalSaveButtonText}>
@@ -937,35 +1428,6 @@ export default function HealthScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Recent Health Metrics History */}
-      {activeTab === 'metrics' && allMetrics.length > 0 && (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.historySection}>
-            <Text style={[styles.historyTitle, { color: colors.text }]}>Recent Entries</Text>
-            {allMetrics
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-              .slice(0, 7)
-              .map((metric, index) => (
-                <View key={`${metric.id}-${index}`} style={[styles.historyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[styles.historyDate, { color: colors.primary }]}>
-                    {dateUtils.formatDate(new Date(metric.date))}
-                  </Text>
-                  <View style={styles.historyMetrics}>
-                    {metric.weight && (
-                      <Text style={[styles.historyMetric, { color: colors.textSecondary }]}>Weight: {metric.weight}kg</Text>
-                    )}
-                    <Text style={[styles.historyMetric, { color: colors.textSecondary }]}>Water: {metric.waterIntake}ml</Text>
-                    <Text style={[styles.historyMetric, { color: colors.textSecondary }]}>Energy: {metric.energyLevel}/5</Text>
-                    <Text style={[styles.historyMetric, { color: colors.textSecondary }]}>Mood: {metric.mood}/5</Text>
-                    <Text style={[styles.historyMetric, { color: colors.textSecondary }]}>Sleep: {metric.sleepQuality}/5</Text>
-                  </View>
-                </View>
-              ))
-            }
-          </View>
-        </ScrollView>
-      )}
     </SafeAreaView>
   );
 }
@@ -1193,31 +1655,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  historySection: {
-    marginTop: 16,
-  },
-  historyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  historyCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  historyDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  historyMetrics: {
-    gap: 4,
-  },
-  historyMetric: {
-    fontSize: 14,
-  },
   tipsSection: {
     marginTop: 24,
     marginBottom: 16,
@@ -1283,7 +1720,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
   },
-  
+
   // Journal Styles
   journalContainer: {
     flex: 1,
@@ -1439,7 +1876,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
   },
-  
+
   // Journal Modal Styles
   journalModalOverlay: {
     flex: 1,
@@ -1571,5 +2008,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
