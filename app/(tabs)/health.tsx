@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ElementType } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ import {
   Search,
   Filter,
   X,
-  CreditCard as Edit3,
+  Edit3,
   Trash2,
   Calendar,
 } from 'lucide-react-native';
@@ -478,7 +478,7 @@ export default function HealthScreen() {
     title: string;
     value: number;
     onValueChange: (value: number) => void;
-    icon: any;
+    icon: ElementType;
     color: string;
   }) => (
     <View style={styles.ratingContainer}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, ElementType } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
   User,
   Bell,
   Target,
-  CircleCheck as CheckCircle,
+  CheckCircle,
   Zap,
 } from 'lucide-react-native';
 import { FastingMethodCard } from '@/components/FastingMethodCard';
@@ -32,7 +32,17 @@ import { FastingMethod } from '@/types';
 
 const { width } = Dimensions.get('window');
 
-const onboardingScreens = [
+interface OnboardingScreenInfo {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: ElementType;
+  content: string;
+  color: string;
+  benefits?: string[];
+}
+
+const onboardingScreens: OnboardingScreenInfo[] = [
   {
     id: 'welcome',
     title: 'Welcome to FastTrack',
@@ -120,6 +130,19 @@ interface UserProfile {
   experience: 'beginner' | 'intermediate' | 'advanced';
   preferredStartTime: string;
 }
+
+const goals = [
+  { id: 'weight_loss', label: 'Weight Management', icon: '⚖️' },
+  { id: 'health', label: 'Overall Health', icon: '❤️' },
+  { id: 'energy', label: 'More Energy', icon: '⚡' },
+  { id: 'lifestyle', label: 'Lifestyle Change', icon: '🌟' },
+] as const;
+
+const experienceLevels = [
+  { id: 'beginner', label: 'Beginner' },
+  { id: 'intermediate', label: 'Intermediate' },
+  { id: 'advanced', label: 'Advanced' },
+] as const;
 
 export default function OnboardingScreen() {
   const [currentScreen, setCurrentScreen] = useState(0);
@@ -259,92 +282,88 @@ export default function OnboardingScreen() {
   const IconComponent = screen.icon;
 
   const renderProfileScreen = () => (
-    <View style={styles.profileContainer}>
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>What should we call you?</Text>
-        <TextInput
-          style={[styles.textInput, nameError && styles.errorInput]}
-          value={userProfile.name}
-          onChangeText={(text) => {
-            if (nameError) {
-              setNameError(false);
-            }
-            setUserProfile((prev) => ({ ...prev, name: text }));
-          }}
-          placeholder="Enter your name"
-          placeholderTextColor="#9CA3AF"
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>What's your primary goal?</Text>
-        <View style={styles.optionsGrid}>
-          {[
-            { id: 'weight_loss', label: 'Weight Management', icon: '⚖️' },
-            { id: 'health', label: 'Overall Health', icon: '❤️' },
-            { id: 'energy', label: 'More Energy', icon: '⚡' },
-            { id: 'lifestyle', label: 'Lifestyle Change', icon: '🌟' },
-          ].map((option) => (
-            <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.optionCard,
-                userProfile.goal === option.id && styles.selectedOption,
-              ]}
-              onPress={() =>
-                setUserProfile((prev) => ({ ...prev, goal: option.id as any }))
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={styles.profileContainer}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>What should we call you?</Text>
+          <TextInput
+            style={[styles.textInput, nameError && styles.errorInput]}
+            value={userProfile.name}
+            onChangeText={(text) => {
+              if (nameError) {
+                setNameError(false);
               }
-            >
-              <Text style={styles.optionIcon}>{option.icon}</Text>
-              <Text
-                style={[
-                  styles.optionText,
-                  userProfile.goal === option.id && styles.selectedOptionText,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              setUserProfile((prev) => ({ ...prev, name: text }));
+            }}
+            placeholder="Enter your name"
+            placeholderTextColor="#9CA3AF"
+          />
         </View>
-      </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Fasting experience level?</Text>
-        <View style={styles.experienceButtons}>
-          {[
-            { id: 'beginner', label: 'Beginner' },
-            { id: 'intermediate', label: 'Intermediate' },
-            { id: 'advanced', label: 'Advanced' },
-          ].map((level) => (
-            <TouchableOpacity
-              key={level.id}
-              style={[
-                styles.experienceButton,
-                userProfile.experience === level.id &&
-                  styles.selectedExperience,
-              ]}
-              onPress={() =>
-                setUserProfile((prev) => ({
-                  ...prev,
-                  experience: level.id as any,
-                }))
-              }
-            >
-              <Text
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>What's your primary goal?</Text>
+          <View style={styles.optionsGrid}>
+            {goals.map((option) => (
+              <TouchableOpacity
+                key={option.id}
                 style={[
-                  styles.experienceText,
+                  styles.optionCard,
+                  userProfile.goal === option.id && styles.selectedOption,
+                ]}
+                onPress={() =>
+                  setUserProfile((prev) => ({
+                    ...prev,
+                    goal: option.id,
+                  }))
+                }
+              >
+                <Text style={styles.optionIcon}>{option.icon}</Text>
+                <Text
+                  style={[
+                    styles.optionText,
+                    userProfile.goal === option.id && styles.selectedOptionText,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Fasting experience level?</Text>
+          <View style={styles.experienceButtons}>
+            {experienceLevels.map((level) => (
+              <TouchableOpacity
+                key={level.id}
+                style={[
+                  styles.experienceButton,
                   userProfile.experience === level.id &&
-                    styles.selectedExperienceText,
+                    styles.selectedExperience,
                 ]}
+                onPress={() =>
+                  setUserProfile((prev) => ({
+                    ...prev,
+                    experience: level.id,
+                  }))
+                }
               >
-                {level.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.experienceText,
+                    userProfile.experience === level.id &&
+                      styles.selectedExperienceText,
+                  ]}
+                >
+                  {level.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 
   const renderNotificationScreen = () => (
@@ -711,18 +730,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   notificationOption: {
-    flex: 1,
+    // flex: 1 removed to allow cards to have natural height
   },
   notificationCard: {
     backgroundColor: '#F9FAFB',
     borderWidth: 2,
     borderColor: '#E5E7EB',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minHeight: 120,
+    gap: 8,
     justifyContent: 'center',
   },
   selectedNotification: {
@@ -730,18 +747,18 @@ const styles = StyleSheet.create({
     borderColor: '#06B6D4',
   },
   notificationTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1F2937',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   notificationDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 10,
+    lineHeight: 16,
+    paddingHorizontal: 5,
   },
   selectedNotificationText: {
     color: '#FFFFFF',

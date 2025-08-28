@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import {
   Clock,
-  ChartBar as BarChart3,
+  BarChart3,
   Heart,
   Settings,
   Award,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, ElementType } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: any;
+  icon: ElementType;
   color: string;
   unlocked: boolean;
   progress: number;

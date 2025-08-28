@@ -132,6 +132,7 @@ export const storageService = {
             darkMode: false,
             onboardingCompleted: false,
             paywallSeen: false,
+            isPremium: false,
           };
     } catch (error) {
       console.error('Error loading user settings:', error);
@@ -145,6 +146,7 @@ export const storageService = {
         darkMode: false,
         onboardingCompleted: false,
         paywallSeen: false,
+        isPremium: false,
       };
     }
   },
@@ -164,17 +166,14 @@ export const storageService = {
   async getFastingState(): Promise<FastingState | null> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.FASTING_STATE);
-      return data
-        ? {
-            ...JSON.parse(data),
-            startTime: JSON.parse(data).startTime
-              ? new Date(JSON.parse(data).startTime)
-              : null,
-            endTime: JSON.parse(data).endTime
-              ? new Date(JSON.parse(data).endTime)
-              : null,
-          }
-        : null;
+      if (!data) return null;
+
+      const parsedData = JSON.parse(data);
+      return {
+        ...parsedData,
+        startTime: parsedData.startTime ? new Date(parsedData.startTime) : null,
+        endTime: parsedData.endTime ? new Date(parsedData.endTime) : null,
+      };
     } catch (error) {
       console.error('Error loading fasting state:', error);
       return null;

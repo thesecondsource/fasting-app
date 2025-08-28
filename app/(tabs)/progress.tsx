@@ -15,7 +15,7 @@ import {
   Award,
   Target,
   Clock,
-  ChartBar as BarChart3,
+  BarChart3,
   Activity,
   Zap,
   Heart,

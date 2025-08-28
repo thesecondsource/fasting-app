@@ -46,8 +46,12 @@ class RevenueCatService {
         packageToPurchase
       );
       return customerInfo;
-    } catch (e: any) {
-      if (!e.userCancelled) {
+    } catch (e: unknown) {
+      const userCancelled =
+        typeof e === 'object' &&
+        e !== null &&
+        (e as { userCancelled?: boolean }).userCancelled;
+      if (!userCancelled) {
         console.error('Error purchasing package:', e);
         Alert.alert('Purchase Error', 'There was an issue with your purchase.');
       }

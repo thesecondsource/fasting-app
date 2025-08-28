@@ -66,9 +66,9 @@ export default function SettingsScreen() {
     reminderInterval: 60,
     units: 'metric',
     darkMode: false,
-    onboardingCompleted: false, // isPremium is now handled by SubscriptionContext
-    premiumExpiryDate: undefined,
+    onboardingCompleted: false,
     paywallSeen: false,
+    isPremium: false, // Add this line to satisfy UserSettings type
   });
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -209,7 +209,7 @@ export default function SettingsScreen() {
     console.log('Upgrading to plan:', planId);
   };
 
-  const escapeCsvField = (field: any): string => {
+  const escapeCsvField = (field: unknown): string => {
     if (field === null || field === undefined) {
       return '';
     }
