@@ -24,19 +24,19 @@ export const useFasting = () => {
   // Update current time every minute when fasting is active
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
+
     if (fastingState.isActive) {
       interval = setInterval(() => {
         const now = new Date();
         setCurrentTime(now);
-        
+
         // Check if fasting period has ended
         if (fastingState.endTime && now >= fastingState.endTime) {
           completeFasting();
         }
-      }, 60000); // Update every minute
+      }, 1000); // Update every second
     }
-    
+
     return () => {
       if (interval) {
         clearInterval(interval);
@@ -105,7 +105,7 @@ export const useFasting = () => {
     try {
       const startTime = new Date();
       const endTime = dateUtils.addHoursToDate(startTime, method.fastingHours);
-      
+
       const newSession: FastingSession = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
         method,
@@ -135,12 +135,12 @@ export const useFasting = () => {
           `Your ${method.name} fasting period has ended. You can now eat!`,
           endTime
         );
-        
+
         // Store notification ID for potential cancellation
         if (notificationId) {
           console.log('Scheduled fasting end notification:', notificationId);
         }
-        
+
         // Schedule a reminder notification 30 minutes before end
         const reminderTime = new Date(endTime.getTime() - 30 * 60 * 1000);
         if (reminderTime > new Date()) {
@@ -163,7 +163,9 @@ export const useFasting = () => {
           ...fastingState.currentSession,
           endTime: new Date(),
           completed: true,
-          duration: Math.round((new Date().getTime() - fastingState.startTime!.getTime()) / 60000),
+          duration: Math.round(
+            (new Date().getTime() - fastingState.startTime!.getTime()) / 60000
+          ),
         };
 
         await storageService.saveFastingSession(completedSession);
@@ -187,12 +189,16 @@ export const useFasting = () => {
   const getTimeRemaining = useCallback((): string => {
     if (!fastingState.endTime) return '0m';
     return dateUtils.formatTimeRemaining(fastingState.endTime, currentTime);
-  }, [fastingState.endTime]);
+  }, [fastingState.endTime, currentTime]);
 
   const getProgress = useCallback((): number => {
     if (!fastingState.startTime || !fastingState.endTime) return 0;
-    return dateUtils.getProgressPercentage(fastingState.startTime, fastingState.endTime, currentTime);
-  }, [fastingState.startTime, fastingState.endTime]);
+    return dateUtils.getProgressPercentage(
+      fastingState.startTime,
+      fastingState.endTime,
+      currentTime
+    );
+  }, [fastingState.startTime, fastingState.endTime, currentTime]);
 
   return {
     fastingState,

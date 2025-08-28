@@ -162,12 +162,6 @@ export default function SettingsScreen() {
     console.log('Upgrading to plan:', planId);
   };
 
-  const togglePremiumDemo = async () => {
-    // Demo function to toggle premium status for testing
-    const newSettings = { ...settings, isPremium: !settings.isPremium };
-    await saveSettings(newSettings);
-  };
-
   const escapeCsvField = (field: any): string => {
     if (field === null || field === undefined) {
       return '';
@@ -614,43 +608,6 @@ export default function SettingsScreen() {
               Privacy Policy
             </Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Demo Premium Toggle - Remove in production */}
-        <View key="premium-demo-section" style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Crown size={20} color="#FFD700" />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Premium (Demo)
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.settingItem,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                Premium Status
-              </Text>
-              <Text
-                style={[
-                  styles.settingDescription,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Toggle premium features for demo purposes
-              </Text>
-            </View>
-            <Switch
-              value={settings.isPremium}
-              onValueChange={togglePremiumDemo}
-              trackColor={{ false: colors.border, true: '#FFD700' + '60' }}
-              thumbColor={settings.isPremium ? '#FFD700' : colors.textTertiary}
-            />
-          </View>
         </View>
 
         <View key="data-section" style={styles.section}>

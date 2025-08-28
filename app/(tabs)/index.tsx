@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Play, Square, Timer } from 'lucide-react-native';
 import { useFasting } from '@/hooks/useFasting';
@@ -12,15 +19,34 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TimerScreen() {
   const { colors } = useTheme();
-  const { fastingState, loading, startFasting, stopFasting, getTimeRemaining, getProgress } = useFasting();
-  const [selectedMethod, setSelectedMethod] = useState<FastingMethod>(FASTING_METHODS[0]);
+  const {
+    fastingState,
+    loading,
+    startFasting,
+    stopFasting,
+    getTimeRemaining,
+    getProgress,
+  } = useFasting();
+  const [selectedMethod, setSelectedMethod] = useState<FastingMethod>(
+    FASTING_METHODS[0]
+  );
   const [showMethodSelection, setShowMethodSelection] = useState(false);
+  const [timerDisplay, setTimerDisplay] = useState('');
 
   useEffect(() => {
     if (fastingState.method) {
       setSelectedMethod(fastingState.method);
     }
   }, [fastingState.method]);
+
+  useEffect(() => {
+    if (fastingState.isActive) {
+      // The timer display is now driven by the hook's `currentTime` state updates.
+      setTimerDisplay(getTimeRemaining());
+    } else {
+      setTimerDisplay(`${selectedMethod.fastingHours}h 0m`);
+    }
+  }, [fastingState.isActive, getTimeRemaining, selectedMethod]);
 
   const handleStartFasting = () => {
     Alert.alert(
@@ -46,19 +72,27 @@ export default function TimerScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading...
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Intermittent Fasting</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Intermittent Fasting
+          </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {fastingState.isActive ? 'Fasting in Progress' : 'Ready to Start'}
           </Text>
@@ -75,9 +109,11 @@ export default function TimerScreen() {
             <View style={styles.timerContent}>
               <Timer size={32} color={colors.primary} />
               <Text style={[styles.timerText, { color: colors.text }]}>
-                {fastingState.isActive ? getTimeRemaining() : `${selectedMethod.fastingHours}h 0m`}
+                {timerDisplay}
               </Text>
-              <Text style={[styles.timerLabel, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.timerLabel, { color: colors.textSecondary }]}
+              >
                 {fastingState.isActive ? 'Remaining' : 'Duration'}
               </Text>
             </View>
@@ -85,7 +121,15 @@ export default function TimerScreen() {
         </View>
 
         {fastingState.isActive && (
-          <View style={[styles.activeInfo, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}>
+          <View
+            style={[
+              styles.activeInfo,
+              {
+                backgroundColor: colors.primary + '20',
+                borderColor: colors.primary + '40',
+              },
+            ]}
+          >
             <Text style={[styles.activeInfoText, { color: colors.primary }]}>
               Started: {dateUtils.formatTime(fastingState.startTime!)}
             </Text>
@@ -100,7 +144,9 @@ export default function TimerScreen() {
 
         {!fastingState.isActive && !showMethodSelection && (
           <View style={styles.methodInfo}>
-            <Text style={[styles.methodTitle, { color: colors.text }]}>Selected Method</Text>
+            <Text style={[styles.methodTitle, { color: colors.text }]}>
+              Selected Method
+            </Text>
             <FastingMethodCard
               method={selectedMethod}
               isSelected={true}
@@ -111,7 +157,9 @@ export default function TimerScreen() {
 
         {showMethodSelection && !fastingState.isActive && (
           <View style={styles.methodSelection}>
-            <Text style={[styles.methodTitle, { color: colors.text }]}>Choose Your Method</Text>
+            <Text style={[styles.methodTitle, { color: colors.text }]}>
+              Choose Your Method
+            </Text>
             {FASTING_METHODS.map((method) => (
               <FastingMethodCard
                 key={method.id}
@@ -128,22 +176,48 @@ export default function TimerScreen() {
 
         <View style={styles.buttonContainer}>
           {fastingState.isActive ? (
-            <TouchableOpacity style={[styles.stopButton, { backgroundColor: colors.error }]} onPress={handleStopFasting}>
+            <TouchableOpacity
+              style={[styles.stopButton, { backgroundColor: colors.error }]}
+              onPress={handleStopFasting}
+            >
               <Square size={24} color="#FFFFFF" />
-              <Text style={[styles.stopButtonText, { color: '#FFFFFF' }]}>Stop Fast</Text>
+              <Text style={[styles.stopButtonText, { color: '#FFFFFF' }]}>
+                Stop Fast
+              </Text>
             </TouchableOpacity>
           ) : (
             <>
-              <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.primary }]} onPress={handleStartFasting}>
+              <TouchableOpacity
+                style={[
+                  styles.startButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleStartFasting}
+              >
                 <Play size={24} color="#FFFFFF" />
-                <Text style={[styles.startButtonText, { color: '#FFFFFF' }]}>Start Fast</Text>
+                <Text style={[styles.startButtonText, { color: '#FFFFFF' }]}>
+                  Start Fast
+                </Text>
               </TouchableOpacity>
               {!showMethodSelection && (
-                <TouchableOpacity 
-                  style={[styles.changeMethodButton, { backgroundColor: colors.surface, borderColor: colors.border }]} 
+                <TouchableOpacity
+                  style={[
+                    styles.changeMethodButton,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
                   onPress={() => setShowMethodSelection(true)}
                 >
-                  <Text style={[styles.changeMethodButtonText, { color: colors.primary }]}>Change Method</Text>
+                  <Text
+                    style={[
+                      styles.changeMethodButtonText,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    Change Method
+                  </Text>
                 </TouchableOpacity>
               )}
             </>

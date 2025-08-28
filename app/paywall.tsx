@@ -1,8 +1,30 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Crown, X, Check, Star, TrendingUp, ChartBar as BarChart3, Calendar, Download, Headphones, Bell, Zap, Target, Award } from 'lucide-react-native';
+import {
+  Crown,
+  X,
+  Check,
+  Star,
+  TrendingUp,
+  ChartBar as BarChart3,
+  Calendar,
+  Download,
+  Headphones,
+  Bell,
+  Zap,
+  Target,
+  Award,
+} from 'lucide-react-native';
 import { storageService } from '@/utils/storage';
 import { SUBSCRIPTION_PLANS } from '@/constants/premiumFeatures';
 
@@ -68,14 +90,14 @@ export default function PaywallScreen() {
 
   const handleUpgrade = async (planId: string) => {
     setLoading(true);
-    
+
     try {
       // In a real app, this would integrate with RevenueCat or similar payment processor
       // For demo purposes, we'll simulate a successful purchase
-      
+
       // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Update user settings to premium
       const settings = await storageService.getUserSettings();
       await storageService.saveUserSettings({
@@ -119,17 +141,21 @@ export default function PaywallScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={handleContinueWithFree}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={handleContinueWithFree}
+          >
             <X size={24} color="#6B7280" />
           </TouchableOpacity>
-          
+
           <View style={styles.crownContainer}>
             <Crown size={48} color="#FFD700" />
           </View>
-          
+
           <Text style={styles.title}>Unlock Premium</Text>
           <Text style={styles.subtitle}>
-            Take your fasting journey to the next level with advanced features and insights
+            Take your fasting journey to the next level with advanced features
+            and insights
           </Text>
         </View>
 
@@ -140,12 +166,19 @@ export default function PaywallScreen() {
             const IconComponent = feature.icon;
             return (
               <View key={index} style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: feature.color + '20' }]}>
+                <View
+                  style={[
+                    styles.featureIcon,
+                    { backgroundColor: feature.color + '20' },
+                  ]}
+                >
                   <IconComponent size={20} color={feature.color} />
                 </View>
                 <View style={styles.featureContent}>
                   <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
+                  <Text style={styles.featureDescription}>
+                    {feature.description}
+                  </Text>
                 </View>
                 <Check size={20} color="#10B981" />
               </View>
@@ -172,7 +205,7 @@ export default function PaywallScreen() {
                   <Text style={styles.popularText}>MOST POPULAR</Text>
                 </View>
               )}
-              
+
               <View style={styles.planHeader}>
                 <Text style={styles.planName}>{plan.name}</Text>
                 <View style={styles.priceContainer}>
@@ -211,11 +244,19 @@ export default function PaywallScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.freeButton} onPress={handleContinueWithFree}>
-            <Text style={styles.freeButtonText}>Continue with Free Version</Text>
+          <TouchableOpacity
+            style={styles.freeButton}
+            onPress={handleContinueWithFree}
+          >
+            <Text style={styles.freeButtonText}>
+              Continue with Free Version
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.restoreButton} onPress={handleRestorePurchases}>
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={handleRestorePurchases}
+          >
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           </TouchableOpacity>
         </View>
@@ -223,7 +264,8 @@ export default function PaywallScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            • Cancel anytime • No hidden fees • 7-day free trial for new subscribers
+            • Cancel anytime • No hidden fees • 7-day free trial for new
+            subscribers
           </Text>
           <Text style={styles.termsText}>
             By continuing, you agree to our Terms of Service and Privacy Policy

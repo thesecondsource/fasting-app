@@ -1,7 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TrendingUp, Calendar, Award, Target, Clock, ChartBar as BarChart3, Activity, Zap, Heart, Moon, Lock } from 'lucide-react-native';
+import {
+  TrendingUp,
+  Calendar,
+  Award,
+  Target,
+  Clock,
+  ChartBar as BarChart3,
+  Activity,
+  Zap,
+  Heart,
+  Moon,
+  Lock,
+} from 'lucide-react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { FastingSession, HealthMetrics } from '@/types';
 import { storageService } from '@/utils/storage';
@@ -22,7 +42,7 @@ export default function ProgressScreen() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
-  
+
   // Statistics
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
@@ -40,9 +60,9 @@ export default function ProgressScreen() {
     try {
       const [fastingSessions, healthData] = await Promise.all([
         storageService.getFastingSessions(),
-        storageService.getHealthMetrics()
+        storageService.getHealthMetrics(),
       ]);
-      
+
       setSessions(fastingSessions);
       setHealthMetrics(healthData);
       calculateStats(fastingSessions);
@@ -68,48 +88,70 @@ export default function ProgressScreen() {
     console.log('Upgrading to plan:', planId);
   };
 
-  const PremiumFeatureOverlay = ({ children, featureName }: { children: React.ReactNode; featureName: string }) => {
+  const PremiumFeatureOverlay = ({
+    children,
+    featureName,
+  }: {
+    children: React.ReactNode;
+    featureName: string;
+  }) => {
     if (isPremium) {
       return <>{children}</>;
     }
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.premiumOverlay}
         onPress={() => setShowUpgradeModal(true)}
       >
-        <View style={[styles.premiumOverlayContent, { backgroundColor: colors.surface + 'E6' }]}>
+        <View
+          style={[
+            styles.premiumOverlayContent,
+            { backgroundColor: colors.surface + 'E6' },
+          ]}
+        >
           <Lock size={32} color={colors.textSecondary} />
-          <Text style={[styles.premiumOverlayTitle, { color: colors.text }]}>Premium Feature</Text>
-          <Text style={[styles.premiumOverlayText, { color: colors.textSecondary }]}>
+          <Text style={[styles.premiumOverlayTitle, { color: colors.text }]}>
+            Premium Feature
+          </Text>
+          <Text
+            style={[styles.premiumOverlayText, { color: colors.textSecondary }]}
+          >
             Upgrade to unlock {featureName}
           </Text>
           <View style={styles.premiumBadgeContainer}>
             <PremiumBadge size="large" />
           </View>
         </View>
-        <View style={styles.blurredContent}>
-          {children}
-        </View>
+        <View style={styles.blurredContent}>{children}</View>
       </TouchableOpacity>
     );
   };
 
   const calculateStats = (sessions: FastingSession[]) => {
-    const completedSessions = sessions.filter(s => s.completed);
+    const completedSessions = sessions.filter((s) => s.completed);
     const allSessions = sessions;
-    
+
     setTotalFasts(completedSessions.length);
-    setCompletionRate(allSessions.length > 0 ? Math.round((completedSessions.length / allSessions.length) * 100) : 0);
-    
+    setCompletionRate(
+      allSessions.length > 0
+        ? Math.round((completedSessions.length / allSessions.length) * 100)
+        : 0
+    );
+
     // Calculate average duration
     if (completedSessions.length > 0) {
-      const avgDuration = completedSessions.reduce((sum, session) => sum + session.duration, 0) / completedSessions.length;
+      const avgDuration =
+        completedSessions.reduce((sum, session) => sum + session.duration, 0) /
+        completedSessions.length;
       setAverageFastDuration(Math.round(avgDuration));
     }
-    
+
     // Calculate total fasting hours
-    const totalHours = completedSessions.reduce((sum, session) => sum + (session.duration / 60), 0);
+    const totalHours = completedSessions.reduce(
+      (sum, session) => sum + session.duration / 60,
+      0
+    );
     setTotalFastingHours(Math.round(totalHours));
 
     // Calculate streaks
@@ -119,8 +161,9 @@ export default function ProgressScreen() {
   const calculateStreaks = (sessions: FastingSession[]) => {
     if (sessions.length === 0) return;
 
-    const sortedSessions = [...sessions].sort((a, b) => 
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    const sortedSessions = [...sessions].sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
     let current = 0;
@@ -131,26 +174,29 @@ export default function ProgressScreen() {
     for (const session of sortedSessions) {
       const sessionDate = new Date(session.startTime);
       const dayStart = dateUtils.getDayStart(sessionDate);
-      
+
       if (!lastDate) {
         temp = 1;
       } else {
-        const dayDiff = Math.abs(dayStart.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-        
+        const dayDiff =
+          Math.abs(dayStart.getTime() - lastDate.getTime()) /
+          (1000 * 60 * 60 * 24);
+
         if (dayDiff <= 1) {
           temp++;
         } else {
           temp = 1;
         }
       }
-      
+
       longest = Math.max(longest, temp);
       lastDate = dayStart;
-      
+
       // Check if this contributes to current streak
       const today = dateUtils.getDayStart(new Date());
-      const daysSinceSession = Math.abs(today.getTime() - dayStart.getTime()) / (1000 * 60 * 60 * 24);
-      
+      const daysSinceSession =
+        Math.abs(today.getTime() - dayStart.getTime()) / (1000 * 60 * 60 * 24);
+
       if (daysSinceSession <= 1) {
         current = temp;
       }
@@ -164,7 +210,7 @@ export default function ProgressScreen() {
     const now = new Date();
     let startDate: Date;
     let labels: string[];
-    
+
     switch (timeRange) {
       case 'week':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -172,31 +218,32 @@ export default function ProgressScreen() {
         break;
       case 'month':
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        labels = Array.from({ length: 4 }, (_, i) => `W${4-i}`);
+        labels = Array.from({ length: 4 }, (_, i) => `W${4 - i}`);
         break;
       case '3months':
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         labels = ['3mo', '2mo', '1mo', 'Now'];
         break;
     }
-    
+
     return { startDate, labels };
   };
 
   const getFastingFrequencyData = () => {
     const { startDate, labels } = getTimeRangeData();
-    const filteredSessions = sessions.filter(s => 
-      s.completed && new Date(s.startTime) >= startDate
+    const filteredSessions = sessions.filter(
+      (s) => s.completed && new Date(s.startTime) >= startDate
     );
 
     let data: number[];
-    
+
     if (timeRange === 'week') {
       data = Array.from({ length: 7 }, (_, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
-        return filteredSessions.filter(s => 
-          dateUtils.isToday(new Date(s.startTime)) === dateUtils.isToday(date)
+        return filteredSessions.filter(
+          (s) =>
+            dateUtils.isToday(new Date(s.startTime)) === dateUtils.isToday(date)
         ).length;
       });
     } else if (timeRange === 'month') {
@@ -205,8 +252,8 @@ export default function ProgressScreen() {
         weekStart.setDate(weekStart.getDate() - (3 - i) * 7);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 7);
-        
-        return filteredSessions.filter(s => {
+
+        return filteredSessions.filter((s) => {
           const sessionDate = new Date(s.startTime);
           return sessionDate >= weekStart && sessionDate < weekEnd;
         }).length;
@@ -217,8 +264,8 @@ export default function ProgressScreen() {
         monthStart.setMonth(monthStart.getMonth() - (3 - i));
         const monthEnd = new Date(monthStart);
         monthEnd.setMonth(monthEnd.getMonth() + 1);
-        
-        return filteredSessions.filter(s => {
+
+        return filteredSessions.filter((s) => {
           const sessionDate = new Date(s.startTime);
           return sessionDate >= monthStart && sessionDate < monthEnd;
         }).length;
@@ -230,22 +277,27 @@ export default function ProgressScreen() {
 
   const getAverageDurationData = () => {
     const { startDate, labels } = getTimeRangeData();
-    const filteredSessions = sessions.filter(s => 
-      s.completed && new Date(s.startTime) >= startDate
+    const filteredSessions = sessions.filter(
+      (s) => s.completed && new Date(s.startTime) >= startDate
     );
 
     let data: number[];
-    
+
     if (timeRange === 'week') {
       data = Array.from({ length: 7 }, (_, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
-        const daySessions = filteredSessions.filter(s => 
-          dateUtils.isToday(new Date(s.startTime)) === dateUtils.isToday(date)
+        const daySessions = filteredSessions.filter(
+          (s) =>
+            dateUtils.isToday(new Date(s.startTime)) === dateUtils.isToday(date)
         );
-        
+
         if (daySessions.length === 0) return 0;
-        return Math.round(daySessions.reduce((sum, s) => sum + s.duration, 0) / daySessions.length / 60);
+        return Math.round(
+          daySessions.reduce((sum, s) => sum + s.duration, 0) /
+            daySessions.length /
+            60
+        );
       });
     } else {
       // Similar logic for month and 3months
@@ -256,16 +308,16 @@ export default function ProgressScreen() {
   };
 
   const getFastingMethodDistribution = () => {
-    const completedSessions = sessions.filter(s => s.completed);
+    const completedSessions = sessions.filter((s) => s.completed);
     const methodCounts: { [key: string]: number } = {};
-    
-    completedSessions.forEach(session => {
+
+    completedSessions.forEach((session) => {
       const methodName = session.method.name;
       methodCounts[methodName] = (methodCounts[methodName] || 0) + 1;
     });
 
     const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-    
+
     return Object.entries(methodCounts).map(([name, count], index) => ({
       name,
       count,
@@ -277,19 +329,23 @@ export default function ProgressScreen() {
 
   const getWeightProgressData = () => {
     const weightData = healthMetrics
-      .filter(m => m.weight)
+      .filter((m) => m.weight)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-7);
 
     if (weightData.length === 0) return null;
 
     return {
-      labels: weightData.map(m => dateUtils.formatDate(new Date(m.date)).slice(0, 5)),
-      datasets: [{
-        data: weightData.map(m => m.weight!),
-        color: () => '#10B981',
-        strokeWidth: 2,
-      }],
+      labels: weightData.map((m) =>
+        dateUtils.formatDate(new Date(m.date)).slice(0, 5)
+      ),
+      datasets: [
+        {
+          data: weightData.map((m) => m.weight!),
+          color: () => '#10B981',
+          strokeWidth: 2,
+        },
+      ],
     };
   };
 
@@ -301,20 +357,22 @@ export default function ProgressScreen() {
     if (recentMetrics.length === 0) return null;
 
     return {
-      labels: recentMetrics.map(m => dateUtils.formatDate(new Date(m.date)).slice(0, 5)),
+      labels: recentMetrics.map((m) =>
+        dateUtils.formatDate(new Date(m.date)).slice(0, 5)
+      ),
       datasets: [
         {
-          data: recentMetrics.map(m => m.energyLevel),
+          data: recentMetrics.map((m) => m.energyLevel),
           color: () => colors.warning,
           strokeWidth: 2,
         },
         {
-          data: recentMetrics.map(m => m.mood),
+          data: recentMetrics.map((m) => m.mood),
           color: () => colors.error,
           strokeWidth: 2,
         },
         {
-          data: recentMetrics.map(m => m.sleepQuality),
+          data: recentMetrics.map((m) => m.sleepQuality),
           color: () => '#8B5CF6',
           strokeWidth: 2,
         },
@@ -330,12 +388,16 @@ export default function ProgressScreen() {
     if (recentMetrics.length === 0) return null;
 
     return {
-      labels: recentMetrics.map(m => dateUtils.formatDate(new Date(m.date)).slice(0, 5)),
-      datasets: [{
-        data: recentMetrics.map(m => m.energyLevel),
-        color: () => colors.warning,
-        strokeWidth: 2,
-      }],
+      labels: recentMetrics.map((m) =>
+        dateUtils.formatDate(new Date(m.date)).slice(0, 5)
+      ),
+      datasets: [
+        {
+          data: recentMetrics.map((m) => m.energyLevel),
+          color: () => colors.warning,
+          strokeWidth: 2,
+        },
+      ],
     };
   };
 
@@ -347,12 +409,16 @@ export default function ProgressScreen() {
     if (recentMetrics.length === 0) return null;
 
     return {
-      labels: recentMetrics.map(m => dateUtils.formatDate(new Date(m.date)).slice(0, 5)),
-      datasets: [{
-        data: recentMetrics.map(m => m.mood),
-        color: () => colors.error,
-        strokeWidth: 2,
-      }],
+      labels: recentMetrics.map((m) =>
+        dateUtils.formatDate(new Date(m.date)).slice(0, 5)
+      ),
+      datasets: [
+        {
+          data: recentMetrics.map((m) => m.mood),
+          color: () => colors.error,
+          strokeWidth: 2,
+        },
+      ],
     };
   };
 
@@ -364,12 +430,16 @@ export default function ProgressScreen() {
     if (recentMetrics.length === 0) return null;
 
     return {
-      labels: recentMetrics.map(m => dateUtils.formatDate(new Date(m.date)).slice(0, 5)),
-      datasets: [{
-        data: recentMetrics.map(m => m.sleepQuality),
-        color: () => '#8B5CF6',
-        strokeWidth: 2,
-      }],
+      labels: recentMetrics.map((m) =>
+        dateUtils.formatDate(new Date(m.date)).slice(0, 5)
+      ),
+      datasets: [
+        {
+          data: recentMetrics.map((m) => m.sleepQuality),
+          color: () => '#8B5CF6',
+          strokeWidth: 2,
+        },
+      ],
     };
   };
 
@@ -379,7 +449,10 @@ export default function ProgressScreen() {
     backgroundGradientTo: '#FFFFFF',
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: (opacity = 1) => colors.isDarkMode ? `rgba(255, 255, 255, ${opacity})` : `rgba(107, 114, 128, ${opacity})`,
+    labelColor: (opacity = 1) =>
+      colors.isDarkMode
+        ? `rgba(255, 255, 255, ${opacity})`
+        : `rgba(107, 114, 128, ${opacity})`,
     style: {
       borderRadius: 16,
     },
@@ -392,9 +465,13 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading progress...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading progress...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -409,12 +486,18 @@ export default function ProgressScreen() {
   const sleepData = getSleepQualityData();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Your Progress</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Your Progress
+          </Text>
           <View style={styles.headerContent}>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Comprehensive fasting analytics</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Comprehensive fasting analytics
+            </Text>
             {isPremium && (
               <View style={styles.premiumBadgeHeader}>
                 <PremiumBadge size="small" />
@@ -424,21 +507,33 @@ export default function ProgressScreen() {
         </View>
 
         {/* Time Range Selector */}
-        <View style={[styles.timeRangeContainer, { backgroundColor: colors.surface }]}>
+        <View
+          style={[
+            styles.timeRangeContainer,
+            { backgroundColor: colors.surface },
+          ]}
+        >
           {(['week', 'month', '3months'] as TimeRange[]).map((range) => (
             <TouchableOpacity
               key={range}
               style={[
                 styles.timeRangeButton,
-                timeRange === range && { backgroundColor: colors.primary }
+                timeRange === range && { backgroundColor: colors.primary },
               ]}
               onPress={() => setTimeRange(range)}
             >
-              <Text style={[
-                styles.timeRangeButtonText, 
-                { color: timeRange === range ? '#FFFFFF' : colors.textSecondary }
-              ]}>
-                {range === '3months' ? '3 Months' : range.charAt(0).toUpperCase() + range.slice(1)}
+              <Text
+                style={[
+                  styles.timeRangeButtonText,
+                  {
+                    color:
+                      timeRange === range ? '#FFFFFF' : colors.textSecondary,
+                  },
+                ]}
+              >
+                {range === '3months'
+                  ? '3 Months'
+                  : range.charAt(0).toUpperCase() + range.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -446,56 +541,153 @@ export default function ProgressScreen() {
 
         {/* Key Statistics */}
         <View style={styles.statsGrid}>
-          <View key="current-streak" style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            key="current-streak"
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Award size={20} color={colors.success} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{currentStreak}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Current Streak</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {currentStreak}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Current Streak
+            </Text>
           </View>
-          <View key="longest-streak" style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            key="longest-streak"
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Target size={20} color={colors.warning} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{longestStreak}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Longest Streak</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {longestStreak}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Longest Streak
+            </Text>
           </View>
-          <View key="total-fasts" style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            key="total-fasts"
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <TrendingUp size={20} color={colors.primary} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{totalFasts}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Fasts</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {totalFasts}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Total Fasts
+            </Text>
           </View>
-          <View key="total-hours" style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            key="total-hours"
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Clock size={20} color="#8B5CF6" />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{totalFastingHours}h</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Hours</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {totalFastingHours}h
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Total Hours
+            </Text>
           </View>
         </View>
 
         {/* Additional Stats Row */}
         <View style={styles.additionalStats}>
-          <View key="avg-duration" style={[styles.additionalStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            key="avg-duration"
+            style={[
+              styles.additionalStatCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Activity size={16} color={colors.error} />
-            <Text style={[styles.additionalStatLabel, { color: colors.textSecondary }]}>Avg Duration</Text>
+            <Text
+              style={[
+                styles.additionalStatLabel,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Avg Duration
+            </Text>
             <Text style={[styles.additionalStatValue, { color: colors.text }]}>
               {dateUtils.formatDuration(averageFastDuration)}
             </Text>
           </View>
-          <View key="success-rate" style={[styles.additionalStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            key="success-rate"
+            style={[
+              styles.additionalStatCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <BarChart3 size={16} color={colors.info} />
-            <Text style={[styles.additionalStatLabel, { color: colors.textSecondary }]}>Success Rate</Text>
-            <Text style={[styles.additionalStatValue, { color: colors.text }]}>{completionRate}%</Text>
+            <Text
+              style={[
+                styles.additionalStatLabel,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Success Rate
+            </Text>
+            <Text style={[styles.additionalStatValue, { color: colors.text }]}>
+              {completionRate}%
+            </Text>
           </View>
         </View>
 
         {/* Fasting Frequency Chart */}
         <View style={styles.chartContainer}>
-          <Text style={[styles.chartTitle, { color: colors.text }]}>Fasting Frequency</Text>
+          <Text style={[styles.chartTitle, { color: colors.text }]}>
+            Fasting Frequency
+          </Text>
           {Platform.OS === 'web' ? (
-            <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.webChartPlaceholder,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <BarChart3 size={48} color={colors.textTertiary} />
-              <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+              <Text
+                style={[styles.webChartText, { color: colors.textSecondary }]}
+              >
+                Chart available on mobile
+              </Text>
               <View style={styles.webDataDisplay}>
                 {frequencyData.labels.map((label, index) => (
-                  <View key={`frequency-${index}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{label}</Text>
-                    <Text style={[styles.webDataValue, { color: colors.text }]}>{frequencyData.data[index]}</Text>
+                  <View
+                    key={`frequency-${index}`}
+                    style={[
+                      styles.webDataItem,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.webDataLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                    <Text style={[styles.webDataValue, { color: colors.text }]}>
+                      {frequencyData.data[index]}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -517,16 +709,45 @@ export default function ProgressScreen() {
 
         {/* Average Duration Chart */}
         <View style={styles.chartContainer}>
-          <Text style={[styles.chartTitle, { color: colors.text }]}>Average Duration (Hours)</Text>
+          <Text style={[styles.chartTitle, { color: colors.text }]}>
+            Average Duration (Hours)
+          </Text>
           {Platform.OS === 'web' ? (
-            <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.webChartPlaceholder,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <Activity size={48} color={colors.textTertiary} />
-              <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+              <Text
+                style={[styles.webChartText, { color: colors.textSecondary }]}
+              >
+                Chart available on mobile
+              </Text>
               <View style={styles.webDataDisplay}>
                 {durationData.labels.map((label, index) => (
-                  <View key={`duration-${index}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{label}</Text>
-                    <Text style={[styles.webDataValue, { color: colors.text }]}>{durationData.data[index]}h</Text>
+                  <View
+                    key={`duration-${index}`}
+                    style={[
+                      styles.webDataItem,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.webDataLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                    <Text style={[styles.webDataValue, { color: colors.text }]}>
+                      {durationData.data[index]}h
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -535,7 +756,12 @@ export default function ProgressScreen() {
             <LineChart
               data={{
                 labels: durationData.labels,
-                datasets: [{ data: durationData.data.length > 0 ? durationData.data : [0] }],
+                datasets: [
+                  {
+                    data:
+                      durationData.data.length > 0 ? durationData.data : [0],
+                  },
+                ],
               }}
               width={screenWidth - 40}
               height={200}
@@ -559,19 +785,61 @@ export default function ProgressScreen() {
           <PremiumFeatureOverlay featureName="detailed method analytics">
             <View style={styles.chartContainer}>
               <View style={styles.chartHeader}>
-                <Text style={[styles.chartTitle, { color: colors.text }]}>Fasting Methods Used</Text>
+                <Text style={[styles.chartTitle, { color: colors.text }]}>
+                  Fasting Methods Used
+                </Text>
                 {!isPremium && <PremiumBadge size="small" />}
               </View>
               {Platform.OS === 'web' ? (
-                <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.webChartPlaceholder,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <Target size={48} color={colors.textTertiary} />
-                  <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+                  <Text
+                    style={[
+                      styles.webChartText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Chart available on mobile
+                  </Text>
                   <View style={styles.webDataDisplay}>
                     {methodDistribution.map((item) => (
-                      <View key={`method-${item.name}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                        <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
-                        <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{item.name}</Text>
-                        <Text style={[styles.webDataValue, { color: colors.text }]}>{item.count}</Text>
+                      <View
+                        key={`method-${item.name}`}
+                        style={[
+                          styles.webDataItem,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.colorIndicator,
+                            { backgroundColor: item.color },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.webDataLabel,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text
+                          style={[styles.webDataValue, { color: colors.text }]}
+                        >
+                          {item.count}
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -597,18 +865,55 @@ export default function ProgressScreen() {
           <PremiumFeatureOverlay featureName="energy level analytics">
             <View style={styles.chartContainer}>
               <View style={styles.chartHeader}>
-                <Text style={[styles.chartTitle, { color: colors.text }]}>Energy Level (1-5 Scale)</Text>
+                <Text style={[styles.chartTitle, { color: colors.text }]}>
+                  Energy Level (1-5 Scale)
+                </Text>
                 {!isPremium && <PremiumBadge size="small" />}
               </View>
               {Platform.OS === 'web' ? (
-                <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.webChartPlaceholder,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <Zap size={48} color={colors.textTertiary} />
-                  <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+                  <Text
+                    style={[
+                      styles.webChartText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Chart available on mobile
+                  </Text>
                   <View style={styles.webDataDisplay}>
                     {energyData.labels.map((label, index) => (
-                      <View key={`energy-${index}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                        <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{label}</Text>
-                        <Text style={[styles.webDataValue, { color: colors.text }]}>{energyData.datasets[0].data[index]}/5</Text>
+                      <View
+                        key={`energy-${index}`}
+                        style={[
+                          styles.webDataItem,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.webDataLabel,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                        <Text
+                          style={[styles.webDataValue, { color: colors.text }]}
+                        >
+                          {energyData.datasets[0].data[index]}/5
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -643,18 +948,55 @@ export default function ProgressScreen() {
           <PremiumFeatureOverlay featureName="mood analytics">
             <View style={styles.chartContainer}>
               <View style={styles.chartHeader}>
-                <Text style={[styles.chartTitle, { color: colors.text }]}>Mood (1-5 Scale)</Text>
+                <Text style={[styles.chartTitle, { color: colors.text }]}>
+                  Mood (1-5 Scale)
+                </Text>
                 {!isPremium && <PremiumBadge size="small" />}
               </View>
               {Platform.OS === 'web' ? (
-                <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.webChartPlaceholder,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <Heart size={48} color={colors.textTertiary} />
-                  <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+                  <Text
+                    style={[
+                      styles.webChartText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Chart available on mobile
+                  </Text>
                   <View style={styles.webDataDisplay}>
                     {moodData.labels.map((label, index) => (
-                      <View key={`mood-${index}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                        <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{label}</Text>
-                        <Text style={[styles.webDataValue, { color: colors.text }]}>{moodData.datasets[0].data[index]}/5</Text>
+                      <View
+                        key={`mood-${index}`}
+                        style={[
+                          styles.webDataItem,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.webDataLabel,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                        <Text
+                          style={[styles.webDataValue, { color: colors.text }]}
+                        >
+                          {moodData.datasets[0].data[index]}/5
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -689,18 +1031,55 @@ export default function ProgressScreen() {
           <PremiumFeatureOverlay featureName="sleep quality analytics">
             <View style={styles.chartContainer}>
               <View style={styles.chartHeader}>
-                <Text style={[styles.chartTitle, { color: colors.text }]}>Sleep Quality (1-5 Scale)</Text>
+                <Text style={[styles.chartTitle, { color: colors.text }]}>
+                  Sleep Quality (1-5 Scale)
+                </Text>
                 {!isPremium && <PremiumBadge size="small" />}
               </View>
               {Platform.OS === 'web' ? (
-                <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.webChartPlaceholder,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <Moon size={48} color={colors.textTertiary} />
-                  <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+                  <Text
+                    style={[
+                      styles.webChartText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Chart available on mobile
+                  </Text>
                   <View style={styles.webDataDisplay}>
                     {sleepData.labels.map((label, index) => (
-                      <View key={`sleep-${index}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                        <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{label}</Text>
-                        <Text style={[styles.webDataValue, { color: colors.text }]}>{sleepData.datasets[0].data[index]}/5</Text>
+                      <View
+                        key={`sleep-${index}`}
+                        style={[
+                          styles.webDataItem,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.webDataLabel,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                        <Text
+                          style={[styles.webDataValue, { color: colors.text }]}
+                        >
+                          {sleepData.datasets[0].data[index]}/5
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -738,18 +1117,55 @@ export default function ProgressScreen() {
           <PremiumFeatureOverlay featureName="weight tracking analytics">
             <View style={styles.chartContainer}>
               <View style={styles.chartHeader}>
-                <Text style={[styles.chartTitle, { color: colors.text }]}>Weight Progress</Text>
+                <Text style={[styles.chartTitle, { color: colors.text }]}>
+                  Weight Progress
+                </Text>
                 {!isPremium && <PremiumBadge size="small" />}
               </View>
               {Platform.OS === 'web' ? (
-                <View style={[styles.webChartPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.webChartPlaceholder,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <TrendingUp size={48} color={colors.textTertiary} />
-                  <Text style={[styles.webChartText, { color: colors.textSecondary }]}>Chart available on mobile</Text>
+                  <Text
+                    style={[
+                      styles.webChartText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Chart available on mobile
+                  </Text>
                   <View style={styles.webDataDisplay}>
                     {weightData.labels.map((label, index) => (
-                      <View key={`weight-${index}`} style={[styles.webDataItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                        <Text style={[styles.webDataLabel, { color: colors.textSecondary }]}>{label}</Text>
-                        <Text style={[styles.webDataValue, { color: colors.text }]}>{weightData.datasets[0].data[index]}kg</Text>
+                      <View
+                        key={`weight-${index}`}
+                        style={[
+                          styles.webDataItem,
+                          {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.webDataLabel,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                        <Text
+                          style={[styles.webDataValue, { color: colors.text }]}
+                        >
+                          {weightData.datasets[0].data[index]}kg
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -778,33 +1194,77 @@ export default function ProgressScreen() {
 
         {/* Recent Sessions */}
         <View style={styles.recentSessionsContainer}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Sessions</Text>
-          {sessions.filter(s => s.completed).length === 0 ? (
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Recent Sessions
+          </Text>
+          {sessions.filter((s) => s.completed).length === 0 ? (
             <View style={styles.emptyState}>
               <Calendar size={48} color={colors.textTertiary} />
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>No completed fasts yet</Text>
-              <Text style={[styles.emptyStateSubtext, { color: colors.textTertiary }]}>
+              <Text
+                style={[styles.emptyStateText, { color: colors.textSecondary }]}
+              >
+                No completed fasts yet
+              </Text>
+              <Text
+                style={[
+                  styles.emptyStateSubtext,
+                  { color: colors.textTertiary },
+                ]}
+              >
                 Start your first fast to see detailed analytics
               </Text>
             </View>
           ) : (
             sessions
-              .filter(s => s.completed)
-              .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+              .filter((s) => s.completed)
+              .sort(
+                (a, b) =>
+                  new Date(b.startTime).getTime() -
+                  new Date(a.startTime).getTime()
+              )
               .slice(0, 5)
               .map((session) => (
-                <View key={session.id} style={[styles.sessionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View
+                  key={session.id}
+                  style={[
+                    styles.sessionCard,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <View style={styles.sessionHeader}>
-                    <Text style={[styles.sessionMethod, { color: colors.primary }]}>{session.method.name}</Text>
-                    <Text style={[styles.sessionDate, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[styles.sessionMethod, { color: colors.primary }]}
+                    >
+                      {session.method.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.sessionDate,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {dateUtils.formatDate(new Date(session.startTime))}
                     </Text>
                   </View>
                   <View style={styles.sessionDetails}>
-                    <Text style={[styles.sessionTime, { color: colors.textSecondary }]}>
-                      {dateUtils.formatTime(new Date(session.startTime))} - {dateUtils.formatTime(new Date(session.endTime))}
+                    <Text
+                      style={[
+                        styles.sessionTime,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {dateUtils.formatTime(new Date(session.startTime))} -{' '}
+                      {dateUtils.formatTime(new Date(session.endTime))}
                     </Text>
-                    <Text style={[styles.sessionDuration, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.sessionDuration,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       Duration: {dateUtils.formatDuration(session.duration)}
                     </Text>
                   </View>

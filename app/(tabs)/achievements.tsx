@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Award, Trophy, Target, Flame, Calendar, Clock, TrendingUp, Star, Lock } from 'lucide-react-native';
+import {
+  Award,
+  Trophy,
+  Target,
+  Flame,
+  Calendar,
+  Clock,
+  TrendingUp,
+  Star,
+  Lock,
+} from 'lucide-react-native';
 import { storageService } from '@/utils/storage';
 import { FastingSession } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -36,9 +52,9 @@ export default function AchievementsScreen() {
     try {
       const [fastingSessions, settings] = await Promise.all([
         storageService.getFastingSessions(),
-        storageService.getUserSettings()
+        storageService.getUserSettings(),
       ]);
-      
+
       setSessions(fastingSessions);
       setIsPremium(settings.isPremium);
       calculateAchievements(fastingSessions);
@@ -50,11 +66,14 @@ export default function AchievementsScreen() {
   };
 
   const calculateAchievements = (sessions: FastingSession[]) => {
-    const completedSessions = sessions.filter(s => s.completed);
+    const completedSessions = sessions.filter((s) => s.completed);
     const currentStreak = calculateCurrentStreak(completedSessions);
     const longestStreak = calculateLongestStreak(completedSessions);
     const totalFasts = completedSessions.length;
-    const totalHours = completedSessions.reduce((sum, s) => sum + (s.duration / 60), 0);
+    const totalHours = completedSessions.reduce(
+      (sum, s) => sum + s.duration / 60,
+      0
+    );
 
     const achievementsList: Achievement[] = [
       // Streak Achievements
@@ -67,7 +86,7 @@ export default function AchievementsScreen() {
         unlocked: totalFasts >= 1,
         progress: Math.min(totalFasts, 1),
         maxProgress: 1,
-        category: 'milestone'
+        category: 'milestone',
       },
       {
         id: 'streak_3',
@@ -78,7 +97,7 @@ export default function AchievementsScreen() {
         unlocked: currentStreak >= 3,
         progress: Math.min(currentStreak, 3),
         maxProgress: 3,
-        category: 'streak'
+        category: 'streak',
       },
       {
         id: 'streak_7',
@@ -89,7 +108,7 @@ export default function AchievementsScreen() {
         unlocked: currentStreak >= 7,
         progress: Math.min(currentStreak, 7),
         maxProgress: 7,
-        category: 'streak'
+        category: 'streak',
       },
       {
         id: 'streak_30',
@@ -101,7 +120,7 @@ export default function AchievementsScreen() {
         progress: Math.min(currentStreak, 30),
         maxProgress: 30,
         category: 'streak',
-        isPremium: true
+        isPremium: true,
       },
       // Duration Achievements
       {
@@ -113,7 +132,7 @@ export default function AchievementsScreen() {
         unlocked: totalHours >= 100,
         progress: Math.min(totalHours, 100),
         maxProgress: 100,
-        category: 'duration'
+        category: 'duration',
       },
       {
         id: 'hours_500',
@@ -125,7 +144,7 @@ export default function AchievementsScreen() {
         progress: Math.min(totalHours, 500),
         maxProgress: 500,
         category: 'duration',
-        isPremium: true
+        isPremium: true,
       },
       // Consistency Achievements
       {
@@ -137,7 +156,7 @@ export default function AchievementsScreen() {
         unlocked: totalFasts >= 10,
         progress: Math.min(totalFasts, 10),
         maxProgress: 10,
-        category: 'consistency'
+        category: 'consistency',
       },
       {
         id: 'fasts_50',
@@ -149,7 +168,7 @@ export default function AchievementsScreen() {
         progress: Math.min(totalFasts, 50),
         maxProgress: 50,
         category: 'consistency',
-        isPremium: true
+        isPremium: true,
       },
       {
         id: 'fasts_100',
@@ -161,8 +180,8 @@ export default function AchievementsScreen() {
         progress: Math.min(totalFasts, 100),
         maxProgress: 100,
         category: 'consistency',
-        isPremium: true
-      }
+        isPremium: true,
+      },
     ];
 
     setAchievements(achievementsList);
@@ -170,9 +189,10 @@ export default function AchievementsScreen() {
 
   const calculateCurrentStreak = (sessions: FastingSession[]): number => {
     if (sessions.length === 0) return 0;
-    
-    const sortedSessions = [...sessions].sort((a, b) => 
-      new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+
+    const sortedSessions = [...sessions].sort(
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
 
     let streak = 0;
@@ -182,9 +202,11 @@ export default function AchievementsScreen() {
     for (const session of sortedSessions) {
       const sessionDate = new Date(session.startTime);
       sessionDate.setHours(0, 0, 0, 0);
-      
-      const dayDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
+      const dayDiff = Math.floor(
+        (currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
       if (dayDiff === streak) {
         streak++;
         currentDate = new Date(sessionDate);
@@ -198,9 +220,10 @@ export default function AchievementsScreen() {
 
   const calculateLongestStreak = (sessions: FastingSession[]): number => {
     if (sessions.length === 0) return 0;
-    
-    const sortedSessions = [...sessions].sort((a, b) => 
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+
+    const sortedSessions = [...sessions].sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
     let maxStreak = 0;
@@ -210,19 +233,21 @@ export default function AchievementsScreen() {
     for (const session of sortedSessions) {
       const sessionDate = new Date(session.startTime);
       sessionDate.setHours(0, 0, 0, 0);
-      
+
       if (!lastDate) {
         currentStreak = 1;
       } else {
-        const dayDiff = Math.floor((sessionDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-        
+        const dayDiff = Math.floor(
+          (sessionDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
         if (dayDiff === 1) {
           currentStreak++;
         } else {
           currentStreak = 1;
         }
       }
-      
+
       maxStreak = Math.max(maxStreak, currentStreak);
       lastDate = sessionDate;
     }
@@ -238,46 +263,57 @@ export default function AchievementsScreen() {
     { id: 'milestone', label: 'Milestones', icon: Target },
   ];
 
-  const filteredAchievements = selectedCategory === 'all' 
-    ? achievements 
-    : achievements.filter(a => a.category === selectedCategory);
+  const filteredAchievements =
+    selectedCategory === 'all'
+      ? achievements
+      : achievements.filter((a) => a.category === selectedCategory);
 
-  const unlockedCount = achievements.filter(a => a.unlocked).length;
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const totalCount = achievements.length;
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading achievements...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading achievements...
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Achievements</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Achievements
+          </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {unlockedCount} of {totalCount} unlocked
           </Text>
-          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View 
+          <View
+            style={[styles.progressBar, { backgroundColor: colors.border }]}
+          >
+            <View
               style={[
-                styles.progressFill, 
-                { 
+                styles.progressFill,
+                {
                   backgroundColor: colors.primary,
-                  width: `${(unlockedCount / totalCount) * 100}%`
-                }
-              ]} 
+                  width: `${(unlockedCount / totalCount) * 100}%`,
+                },
+              ]}
             />
           </View>
         </View>
 
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoriesContainer}
           contentContainerStyle={styles.categoriesContent}
@@ -285,25 +321,33 @@ export default function AchievementsScreen() {
           {categories.map((category) => {
             const IconComponent = category.icon;
             const isSelected = selectedCategory === category.id;
-            
+
             return (
               <TouchableOpacity
                 key={category.id}
                 style={[
                   styles.categoryButton,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                  isSelected && {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  },
                 ]}
                 onPress={() => setSelectedCategory(category.id)}
               >
-                <IconComponent 
-                  size={16} 
-                  color={isSelected ? '#FFFFFF' : colors.textSecondary} 
+                <IconComponent
+                  size={16}
+                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
                 />
-                <Text style={[
-                  styles.categoryText,
-                  { color: isSelected ? '#FFFFFF' : colors.textSecondary }
-                ]}>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                  ]}
+                >
                   {category.label}
                 </Text>
               </TouchableOpacity>
@@ -316,14 +360,19 @@ export default function AchievementsScreen() {
             const IconComponent = achievement.icon;
             const isLocked = !achievement.unlocked;
             const isPremiumLocked = achievement.isPremium && !isPremium;
-            
+
             return (
               <View
                 key={achievement.id}
                 style={[
                   styles.achievementCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  achievement.unlocked && { borderColor: achievement.color + '40' }
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                  achievement.unlocked && {
+                    borderColor: achievement.color + '40',
+                  },
                 ]}
               >
                 {isPremiumLocked && (
@@ -332,48 +381,74 @@ export default function AchievementsScreen() {
                     <PremiumBadge size="small" />
                   </View>
                 )}
-                
-                <View style={[
-                  styles.achievementIcon,
-                  { backgroundColor: achievement.color + '20' },
-                  isLocked && { opacity: 0.5 }
-                ]}>
-                  <IconComponent 
-                    size={24} 
-                    color={isLocked ? colors.textTertiary : achievement.color} 
+
+                <View
+                  style={[
+                    styles.achievementIcon,
+                    { backgroundColor: achievement.color + '20' },
+                    isLocked && { opacity: 0.5 },
+                  ]}
+                >
+                  <IconComponent
+                    size={24}
+                    color={isLocked ? colors.textTertiary : achievement.color}
                   />
                 </View>
-                
-                <Text style={[
-                  styles.achievementTitle,
-                  { color: isLocked ? colors.textTertiary : colors.text }
-                ]}>
+
+                <Text
+                  style={[
+                    styles.achievementTitle,
+                    { color: isLocked ? colors.textTertiary : colors.text },
+                  ]}
+                >
                   {achievement.title}
                 </Text>
-                
-                <Text style={[
-                  styles.achievementDescription,
-                  { color: isLocked ? colors.textTertiary : colors.textSecondary }
-                ]}>
+
+                <Text
+                  style={[
+                    styles.achievementDescription,
+                    {
+                      color: isLocked
+                        ? colors.textTertiary
+                        : colors.textSecondary,
+                    },
+                  ]}
+                >
                   {achievement.description}
                 </Text>
-                
+
                 <View style={styles.progressContainer}>
-                  <View style={[styles.progressBarSmall, { backgroundColor: colors.border }]}>
-                    <View 
+                  <View
+                    style={[
+                      styles.progressBarSmall,
+                      { backgroundColor: colors.border },
+                    ]}
+                  >
+                    <View
                       style={[
                         styles.progressFillSmall,
-                        { 
-                          backgroundColor: isLocked ? colors.textTertiary : achievement.color,
-                          width: `${(achievement.progress / achievement.maxProgress) * 100}%`
-                        }
-                      ]} 
+                        {
+                          backgroundColor: isLocked
+                            ? colors.textTertiary
+                            : achievement.color,
+                          width: `${
+                            (achievement.progress / achievement.maxProgress) *
+                            100
+                          }%`,
+                        },
+                      ]}
                     />
                   </View>
-                  <Text style={[
-                    styles.progressText,
-                    { color: isLocked ? colors.textTertiary : colors.textSecondary }
-                  ]}>
+                  <Text
+                    style={[
+                      styles.progressText,
+                      {
+                        color: isLocked
+                          ? colors.textTertiary
+                          : colors.textSecondary,
+                      },
+                    ]}
+                  >
                     {Math.floor(achievement.progress)}/{achievement.maxProgress}
                   </Text>
                 </View>
