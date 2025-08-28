@@ -142,13 +142,29 @@ export default function OnboardingScreen() {
   const isMethodScreen = onboardingScreens[currentScreen].id === 'method';
 
   const handleNext = async () => {
-    if (isProfileScreen && !userProfile.name.trim()) {
+    if (isProfileScreen) {
+      if (!userProfile.name.trim()) {
+        Alert.alert(
+          'Name Required',
+          'Please tell us what to call you to continue.'
+        );
+        setNameError(true);
+        return;
+      }
+
+      // Name is valid, show agreement alert
       Alert.alert(
-        'Name Required',
-        'Please tell us what to call you to continue.'
+        'Terms & Privacy',
+        'By continuing, you agree to our Terms of Service and Privacy Policy. You can review these at any time in the app settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Agree & Continue',
+            onPress: () => setCurrentScreen((prev) => prev + 1),
+          },
+        ]
       );
-      setNameError(true);
-      return;
+      return; // Stop here, let the alert handle moving to the next screen
     }
 
     if (isNotificationScreen) {
@@ -250,7 +266,9 @@ export default function OnboardingScreen() {
           style={[styles.textInput, nameError && styles.errorInput]}
           value={userProfile.name}
           onChangeText={(text) => {
-            if (nameError) setNameError(false);
+            if (nameError) {
+              setNameError(false);
+            }
             setUserProfile((prev) => ({ ...prev, name: text }));
           }}
           placeholder="Enter your name"
@@ -499,13 +517,7 @@ export default function OnboardingScreen() {
             )}
 
             <TouchableOpacity
-              style={[
-                styles.nextButton,
-                { backgroundColor: screen.color },
-                isProfileScreen &&
-                  !userProfile.name.trim() &&
-                  styles.disabledButton,
-              ]}
+              style={[styles.nextButton, { backgroundColor: screen.color }]}
               onPress={handleNext}
             >
               <Text style={styles.nextButtonText}>
@@ -808,9 +820,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.6,
   },
   errorInput: {
     borderColor: '#EF4444',

@@ -44,34 +44,23 @@ export default function ProgressScreen() {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
 
-  // Statistics
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [longestStreak, setLongestStreak] = useState(0);
-  const [totalFasts, setTotalFasts] = useState(0);
-  const [averageFastDuration, setAverageFastDuration] = useState(0);
-  const [completionRate, setCompletionRate] = useState(0);
-  const [totalFastingHours, setTotalFastingHours] = useState(0);
-
   useEffect(() => {
-    loadProgressData();
+    const loadData = async () => {
+      try {
+        const [fastingSessions, healthData] = await Promise.all([
+          storageService.getFastingSessions(),
+          storageService.getHealthMetrics(),
+        ]);
+        setSessions(fastingSessions);
+        setHealthMetrics(healthData);
+      } catch (error) {
+        console.error('Error loading progress data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
-
-  const loadProgressData = async () => {
-    try {
-      const [fastingSessions, healthData] = await Promise.all([
-        storageService.getFastingSessions(),
-        storageService.getHealthMetrics(),
-      ]);
-
-      setSessions(fastingSessions);
-      setHealthMetrics(healthData);
-      calculateStats(fastingSessions);
-    } catch (error) {
-      console.error('Error loading progress data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleUpgrade = (planId: string) => {
     setShowUpgradeModal(false);
@@ -119,83 +108,70 @@ export default function ProgressScreen() {
     );
   };
 
-  const calculateStats = (sessions: FastingSession[]) => {
+  const stats = React.useMemo(() => {
     const completedSessions = sessions.filter((s) => s.completed);
-    const allSessions = sessions;
-
-    setTotalFasts(completedSessions.length);
-    setCompletionRate(
-      allSessions.length > 0
-        ? Math.round((completedSessions.length / allSessions.length) * 100)
-        : 0
-    );
-
-    // Calculate average duration
-    if (completedSessions.length > 0) {
-      const avgDuration =
-        completedSessions.reduce((sum, session) => sum + session.duration, 0) /
-        completedSessions.length;
-      setAverageFastDuration(Math.round(avgDuration));
+    if (completedSessions.length === 0) {
+      return {
+        totalFasts: 0,
+        completionRate: sessions.length > 0 ? 0 : 100,
+        averageFastDuration: 0,
+        totalFastingHours: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+      };
     }
 
-    // Calculate total fasting hours
-    const totalHours = completedSessions.reduce(
-      (sum, session) => sum + session.duration / 60,
+    const totalFasts = completedSessions.length;
+    const completionRate =
+      sessions.length > 0
+        ? Math.round((totalFasts / sessions.length) * 100)
+        : 0;
+    const totalDurationMs = completedSessions.reduce(
+      (sum, s) => sum + s.duration,
       0
     );
-    setTotalFastingHours(Math.round(totalHours));
+    const averageFastDuration = Math.round(totalDurationMs / totalFasts);
+    const totalFastingHours = Math.round(totalDurationMs / (1000 * 60 * 60));
 
-    // Calculate streaks
-    calculateStreaks(completedSessions);
-  };
+    const uniqueDays = [
+      ...new Set(
+        completedSessions.map((s) =>
+          dateUtils.getDayStart(new Date(s.startTime)).getTime()
+        )
+      ),
+    ].sort((a, b) => a - b);
 
-  const calculateStreaks = (sessions: FastingSession[]) => {
-    if (sessions.length === 0) return;
-
-    const sortedSessions = [...sessions].sort(
-      (a, b) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
-
-    let current = 0;
-    let longest = 0;
-    let temp = 0;
-    let lastDate: Date | null = null;
-
-    for (const session of sortedSessions) {
-      const sessionDate = new Date(session.startTime);
-      const dayStart = dateUtils.getDayStart(sessionDate);
-
-      if (!lastDate) {
-        temp = 1;
-      } else {
+    let longestStreak = 0;
+    let currentStreak = 0;
+    if (uniqueDays.length > 0) {
+      longestStreak = 1;
+      let tempStreak = 1;
+      for (let i = 1; i < uniqueDays.length; i++) {
         const dayDiff =
-          Math.abs(dayStart.getTime() - lastDate.getTime()) /
-          (1000 * 60 * 60 * 24);
-
-        if (dayDiff <= 1) {
-          temp++;
+          (uniqueDays[i] - uniqueDays[i - 1]) / (1000 * 60 * 60 * 24);
+        if (dayDiff === 1) {
+          tempStreak++;
         } else {
-          temp = 1;
+          tempStreak = 1;
         }
+        longestStreak = Math.max(longestStreak, tempStreak);
       }
 
-      longest = Math.max(longest, temp);
-      lastDate = dayStart;
-
-      // Check if this contributes to current streak
-      const today = dateUtils.getDayStart(new Date());
-      const daysSinceSession =
-        Math.abs(today.getTime() - dayStart.getTime()) / (1000 * 60 * 60 * 24);
-
-      if (daysSinceSession <= 1) {
-        current = temp;
-      }
+      const today = dateUtils.getDayStart(new Date()).getTime();
+      const lastFastDay = uniqueDays[uniqueDays.length - 1];
+      const daysSinceLastFast = (today - lastFastDay) / (1000 * 60 * 60 * 24);
+      currentStreak = daysSinceLastFast <= 1 ? tempStreak : 0;
     }
 
-    setCurrentStreak(current);
-    setLongestStreak(longest);
-  };
+    return {
+      totalFasts,
+      completionRate,
+      averageFastDuration,
+      totalFastingHours,
+      currentStreak,
+      longestStreak,
+    };
+  }, [sessions]);
 
   const getTimeRangeData = () => {
     const now = new Date();
@@ -220,6 +196,7 @@ export default function ProgressScreen() {
     return { startDate, labels };
   };
 
+  // All useMemo hooks must be called unconditionally at the top level
   const getFastingFrequencyData = () => {
     const { startDate, labels } = getTimeRangeData();
     const filteredSessions = sessions.filter(
@@ -287,12 +264,14 @@ export default function ProgressScreen() {
         return Math.round(
           daySessions.reduce((sum, s) => sum + s.duration, 0) /
             daySessions.length /
-            60
+            (1000 * 60 * 60)
         );
       });
     } else {
       // Similar logic for month and 3months
-      data = labels.map(() => Math.round(averageFastDuration / 60));
+      data = labels.map(() =>
+        Math.round(stats.averageFastDuration / (1000 * 60 * 60))
+      );
     }
 
     return { labels, data };
@@ -434,25 +413,47 @@ export default function ProgressScreen() {
     };
   };
 
-  const chartConfig = {
-    backgroundColor: '#FFFFFF',
-    backgroundGradientFrom: '#FFFFFF',
-    backgroundGradientTo: '#FFFFFF',
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: (opacity = 1) =>
-      colors.isDarkMode
-        ? `rgba(255, 255, 255, ${opacity})`
-        : `rgba(107, 114, 128, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: '#3B82F6',
-    },
-  };
+  const chartConfig = React.useMemo(
+    () => ({
+      backgroundColor: colors.surface,
+      backgroundGradientFrom: colors.surface,
+      backgroundGradientTo: colors.surface,
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      labelColor: (opacity = 1) => colors.textSecondary,
+      style: {
+        borderRadius: 16,
+      },
+      propsForDots: {
+        r: '4',
+        strokeWidth: '2',
+        stroke: '#3B82F6',
+      },
+    }),
+    [colors]
+  );
+
+  // Memoized chart data - these must be defined before the `if (loading)` check
+  // to adhere to Rules of Hooks
+  const frequencyData = React.useMemo(
+    () => getFastingFrequencyData(),
+    [sessions, timeRange]
+  );
+  const durationData = React.useMemo(
+    () => getAverageDurationData(),
+    [sessions, timeRange, stats.averageFastDuration]
+  );
+  const methodDistribution = React.useMemo(
+    () => getFastingMethodDistribution(),
+    [sessions]
+  );
+  const weightData = React.useMemo(
+    () => getWeightProgressData(),
+    [healthMetrics]
+  );
+  const energyData = React.useMemo(() => getEnergyLevelData(), [healthMetrics]);
+  const moodData = React.useMemo(() => getMoodData(), [healthMetrics]);
+  const sleepData = React.useMemo(() => getSleepQualityData(), [healthMetrics]);
 
   if (loading) {
     return (
@@ -467,14 +468,6 @@ export default function ProgressScreen() {
       </SafeAreaView>
     );
   }
-
-  const frequencyData = getFastingFrequencyData();
-  const durationData = getAverageDurationData();
-  const methodDistribution = getFastingMethodDistribution();
-  const weightData = getWeightProgressData();
-  const energyData = getEnergyLevelData();
-  const moodData = getMoodData();
-  const sleepData = getSleepQualityData();
 
   return (
     <SafeAreaView
@@ -541,7 +534,7 @@ export default function ProgressScreen() {
           >
             <Award size={20} color={colors.success} />
             <Text style={[styles.statNumber, { color: colors.text }]}>
-              {currentStreak}
+              {stats.currentStreak}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
               Current Streak
@@ -556,7 +549,7 @@ export default function ProgressScreen() {
           >
             <Target size={20} color={colors.warning} />
             <Text style={[styles.statNumber, { color: colors.text }]}>
-              {longestStreak}
+              {stats.longestStreak}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
               Longest Streak
@@ -571,7 +564,7 @@ export default function ProgressScreen() {
           >
             <TrendingUp size={20} color={colors.primary} />
             <Text style={[styles.statNumber, { color: colors.text }]}>
-              {totalFasts}
+              {stats.totalFasts}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
               Total Fasts
@@ -586,7 +579,7 @@ export default function ProgressScreen() {
           >
             <Clock size={20} color="#8B5CF6" />
             <Text style={[styles.statNumber, { color: colors.text }]}>
-              {totalFastingHours}h
+              {stats.totalFastingHours}h
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
               Total Hours
@@ -613,7 +606,7 @@ export default function ProgressScreen() {
               Avg Duration
             </Text>
             <Text style={[styles.additionalStatValue, { color: colors.text }]}>
-              {dateUtils.formatDuration(averageFastDuration)}
+              {dateUtils.formatDuration(stats.averageFastDuration)}
             </Text>
           </View>
           <View
@@ -633,7 +626,7 @@ export default function ProgressScreen() {
               Success Rate
             </Text>
             <Text style={[styles.additionalStatValue, { color: colors.text }]}>
-              {completionRate}%
+              {stats.completionRate}%
             </Text>
           </View>
         </View>
