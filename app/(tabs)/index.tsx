@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Play, Square, Timer } from 'lucide-react-native';
-import { useFasting } from '@/hooks/useFasting';
+import { useFastingContext } from '@/contexts/FastingContext';
 import { ProgressCircle } from '@/components/ProgressCircle';
 import { FastingMethodCard } from '@/components/FastingMethodCard';
 import { FastingMethod } from '@/types';
@@ -28,7 +28,7 @@ export default function TimerScreen() {
     stopFasting,
     getTimeRemaining,
     getProgress,
-  } = useFasting();
+  } = useFastingContext();
   const [selectedMethod, setSelectedMethod] = useState<FastingMethod>(
     FASTING_METHODS[0]
   );

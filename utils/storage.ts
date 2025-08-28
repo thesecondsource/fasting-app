@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FastingSession, HealthMetrics, UserSettings, FastingState, JournalEntry } from '@/types';
+import {
+  FastingSession,
+  HealthMetrics,
+  UserSettings,
+  FastingState,
+  JournalEntry,
+} from '@/types';
 import { DEFAULT_FASTING_METHOD } from '@/constants/fastingMethods';
 
 const STORAGE_KEYS = {
@@ -16,11 +22,13 @@ export const storageService = {
   async getFastingSessions(): Promise<FastingSession[]> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.FASTING_SESSIONS);
-      return data ? JSON.parse(data).map((session: any) => ({
-        ...session,
-        startTime: new Date(session.startTime),
-        endTime: new Date(session.endTime),
-      })) : [];
+      return data
+        ? JSON.parse(data).map((session: any) => ({
+            ...session,
+            startTime: new Date(session.startTime),
+            endTime: new Date(session.endTime),
+          }))
+        : [];
     } catch (error) {
       console.error('Error loading fasting sessions:', error);
       return [];
@@ -31,9 +39,23 @@ export const storageService = {
     try {
       const sessions = await this.getFastingSessions();
       const updatedSessions = [...sessions, session];
-      await AsyncStorage.setItem(STORAGE_KEYS.FASTING_SESSIONS, JSON.stringify(updatedSessions));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.FASTING_SESSIONS,
+        JSON.stringify(updatedSessions)
+      );
     } catch (error) {
       console.error('Error saving fasting session:', error);
+    }
+  },
+
+  async saveFastingSessions(sessions: FastingSession[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.FASTING_SESSIONS,
+        JSON.stringify(sessions)
+      );
+    } catch (error) {
+      console.error('Error saving fasting sessions:', error);
     }
   },
 
@@ -41,10 +63,12 @@ export const storageService = {
   async getHealthMetrics(): Promise<HealthMetrics[]> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.HEALTH_METRICS);
-      return data ? JSON.parse(data).map((metric: any) => ({
-        ...metric,
-        date: new Date(metric.date),
-      })) : [];
+      return data
+        ? JSON.parse(data).map((metric: any) => ({
+            ...metric,
+            date: new Date(metric.date),
+          }))
+        : [];
     } catch (error) {
       console.error('Error loading health metrics:', error);
       return [];
@@ -54,12 +78,14 @@ export const storageService = {
   async saveHealthMetrics(metrics: HealthMetrics): Promise<void> {
     try {
       const existingMetrics = await this.getHealthMetrics();
-      
+
       // Check if a metric for the same date already exists
-      const existingIndex = existingMetrics.findIndex(m => 
-        new Date(m.date).toDateString() === new Date(metrics.date).toDateString()
+      const existingIndex = existingMetrics.findIndex(
+        (m) =>
+          new Date(m.date).toDateString() ===
+          new Date(metrics.date).toDateString()
       );
-      
+
       let updatedMetrics;
       if (existingIndex !== -1) {
         // Update existing metric
@@ -69,10 +95,24 @@ export const storageService = {
         // Add new metric
         updatedMetrics = [...existingMetrics, metrics];
       }
-      
-      await AsyncStorage.setItem(STORAGE_KEYS.HEALTH_METRICS, JSON.stringify(updatedMetrics));
+
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.HEALTH_METRICS,
+        JSON.stringify(updatedMetrics)
+      );
     } catch (error) {
       console.error('Error saving health metrics:', error);
+    }
+  },
+
+  async saveAllHealthMetrics(metrics: HealthMetrics[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.HEALTH_METRICS,
+        JSON.stringify(metrics)
+      );
+    } catch (error) {
+      console.error('Error saving all health metrics:', error);
     }
   },
 
@@ -80,18 +120,20 @@ export const storageService = {
   async getUserSettings(): Promise<UserSettings> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.USER_SETTINGS);
-      return data ? JSON.parse(data) : {
-        preferredMethod: DEFAULT_FASTING_METHOD,
-        notificationsEnabled: true,
-        fastingStartNotification: true,
-        fastingEndNotification: true,
-        reminderInterval: 60,
-        units: 'metric',
-        darkMode: false,
-        onboardingCompleted: false,
-        isPremium: false,
-        paywallSeen: false,
-      };
+      return data
+        ? JSON.parse(data)
+        : {
+            preferredMethod: DEFAULT_FASTING_METHOD,
+            notificationsEnabled: true,
+            fastingStartNotification: true,
+            fastingEndNotification: true,
+            reminderInterval: 60,
+            units: 'metric',
+            darkMode: false,
+            onboardingCompleted: false,
+            isPremium: false,
+            paywallSeen: false,
+          };
     } catch (error) {
       console.error('Error loading user settings:', error);
       return {
@@ -111,7 +153,10 @@ export const storageService = {
 
   async saveUserSettings(settings: UserSettings): Promise<void> {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(settings));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USER_SETTINGS,
+        JSON.stringify(settings)
+      );
     } catch (error) {
       console.error('Error saving user settings:', error);
     }
@@ -121,11 +166,17 @@ export const storageService = {
   async getFastingState(): Promise<FastingState | null> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.FASTING_STATE);
-      return data ? {
-        ...JSON.parse(data),
-        startTime: JSON.parse(data).startTime ? new Date(JSON.parse(data).startTime) : null,
-        endTime: JSON.parse(data).endTime ? new Date(JSON.parse(data).endTime) : null,
-      } : null;
+      return data
+        ? {
+            ...JSON.parse(data),
+            startTime: JSON.parse(data).startTime
+              ? new Date(JSON.parse(data).startTime)
+              : null,
+            endTime: JSON.parse(data).endTime
+              ? new Date(JSON.parse(data).endTime)
+              : null,
+          }
+        : null;
     } catch (error) {
       console.error('Error loading fasting state:', error);
       return null;
@@ -134,7 +185,10 @@ export const storageService = {
 
   async saveFastingState(state: FastingState): Promise<void> {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.FASTING_STATE, JSON.stringify(state));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.FASTING_STATE,
+        JSON.stringify(state)
+      );
     } catch (error) {
       console.error('Error saving fasting state:', error);
     }
@@ -159,9 +213,16 @@ export const storageService = {
     }
   },
 
-  async saveLastHealthMetricsSave(date: Date): Promise<void> {
+  async saveLastHealthMetricsSave(date: Date | null): Promise<void> {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.LAST_HEALTH_SAVE, date.toISOString());
+      if (date) {
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.LAST_HEALTH_SAVE,
+          date.toISOString()
+        );
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEYS.LAST_HEALTH_SAVE);
+      }
     } catch (error) {
       console.error('Error saving last health save time:', error);
     }
@@ -171,10 +232,12 @@ export const storageService = {
   async getJournalEntries(): Promise<JournalEntry[]> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.JOURNAL_ENTRIES);
-      return data ? JSON.parse(data).map((entry: any) => ({
-        ...entry,
-        date: new Date(entry.date),
-      })) : [];
+      return data
+        ? JSON.parse(data).map((entry: any) => ({
+            ...entry,
+            date: new Date(entry.date),
+          }))
+        : [];
     } catch (error) {
       console.error('Error loading journal entries:', error);
       return [];
@@ -185,19 +248,36 @@ export const storageService = {
     try {
       const entries = await this.getJournalEntries();
       const updatedEntries = [...entries, entry];
-      await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL_ENTRIES, JSON.stringify(updatedEntries));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.JOURNAL_ENTRIES,
+        JSON.stringify(updatedEntries)
+      );
     } catch (error) {
       console.error('Error saving journal entry:', error);
+    }
+  },
+
+  async saveAllJournalEntries(entries: JournalEntry[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.JOURNAL_ENTRIES,
+        JSON.stringify(entries)
+      );
+    } catch (error) {
+      console.error('Error saving all journal entries:', error);
     }
   },
 
   async updateJournalEntry(updatedEntry: JournalEntry): Promise<void> {
     try {
       const entries = await this.getJournalEntries();
-      const updatedEntries = entries.map(entry => 
+      const updatedEntries = entries.map((entry) =>
         entry.id === updatedEntry.id ? updatedEntry : entry
       );
-      await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL_ENTRIES, JSON.stringify(updatedEntries));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.JOURNAL_ENTRIES,
+        JSON.stringify(updatedEntries)
+      );
     } catch (error) {
       console.error('Error updating journal entry:', error);
     }
@@ -206,8 +286,11 @@ export const storageService = {
   async deleteJournalEntry(entryId: string): Promise<void> {
     try {
       const entries = await this.getJournalEntries();
-      const updatedEntries = entries.filter(entry => entry.id !== entryId);
-      await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL_ENTRIES, JSON.stringify(updatedEntries));
+      const updatedEntries = entries.filter((entry) => entry.id !== entryId);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.JOURNAL_ENTRIES,
+        JSON.stringify(updatedEntries)
+      );
     } catch (error) {
       console.error('Error deleting journal entry:', error);
     }

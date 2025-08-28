@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import {
   Bell,
   User,
@@ -21,6 +22,7 @@ import {
   Sun,
   Crown,
   Star,
+  Bug,
   Download,
 } from 'lucide-react-native';
 import {
@@ -32,6 +34,7 @@ import {
 import { storageService } from '@/utils/storage';
 import { notificationService } from '@/utils/notifications';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useFastingContext } from '@/contexts/FastingContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PremiumBadge } from '@/components/PremiumBadge';
 import { PremiumUpgradeModal } from '@/components/PremiumUpgradeModal';
@@ -40,7 +43,8 @@ import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const { colors, toggleDarkMode } = useTheme();
-  const { isPremium } = useSubscription();
+  const { isPremium, devPremiumEnabled, toggleDevPremium } = useSubscription();
+  const { stopFasting } = useFastingContext();
   const [settings, setSettings] = useState<UserSettings>({
     preferredMethod: {
       id: '16_8',
@@ -129,10 +133,29 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Note: In a real app, you'd want to clear all stored data
-              // For now, we'll just show a confirmation
-              Alert.alert('Success', 'All data has been cleared');
+              // First, stop any active fast to clear in-memory state and notifications
+              await stopFasting();
+
+              // Clear all major data stores
+              await Promise.all([
+                storageService.saveFastingSessions([]),
+                storageService.saveAllHealthMetrics([]),
+                storageService.saveAllJournalEntries([]),
+                storageService.saveLastHealthMetricsSave(null),
+              ]);
+
+              // Reset user settings to trigger re-onboarding
+              // We keep some settings like theme to avoid a jarring UI flash
+              await storageService.saveUserSettings({
+                ...settings,
+                onboardingCompleted: false,
+                paywallSeen: false,
+              });
+
+              // Explicitly navigate to the onboarding screen to reset the stack
+              router.replace('/onboarding');
             } catch (error) {
+              console.error('Error clearing data:', error);
               Alert.alert('Error', 'Failed to clear data');
             }
           },
@@ -680,6 +703,43 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Developer Options - Only shown in development builds */}
+        {__DEV__ && (
+          <View key="developer-section" style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Bug size={20} color={colors.warning} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Developer Options
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.settingItem,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  Force Premium Access
+                </Text>
+                <Text
+                  style={[
+                    styles.settingDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Bypass purchases to test premium features.
+                </Text>
+              </View>
+              <Switch
+                value={devPremiumEnabled}
+                onValueChange={toggleDevPremium}
+              />
+            </View>
+          </View>
+        )}
 
         <PremiumUpgradeModal
           visible={showUpgradeModal}
