@@ -95,6 +95,12 @@ export default function HealthScreen() {
     useState<JournalEntry['mood']>('okay');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [journalTitleError, setJournalTitleError] = useState<string | null>(
+    null
+  );
+  const [journalContentError, setJournalContentError] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     loadHealthData();
@@ -295,11 +301,43 @@ export default function HealthScreen() {
     setTags([]);
     setTagInput('');
     setEditingEntry(null);
+    setJournalTitleError(null);
+    setJournalContentError(null);
+  };
+
+  const validateJournalField = (
+    field: 'title' | 'content',
+    value: string
+  ): string | null => {
+    if (value.trim() === '') {
+      return `${field.charAt(0).toUpperCase() + field.slice(1)} is required.`;
+    }
+    return null;
+  };
+
+  const handleJournalTitleChange = (text: string) => {
+    setJournalTitle(text);
+    if (journalTitleError && text.trim() !== '') {
+      setJournalTitleError(null);
+    }
+  };
+
+  const handleJournalContentChange = (text: string) => {
+    setJournalContent(text);
+    if (journalContentError && text.trim() !== '') {
+      setJournalContentError(null);
+    }
   };
 
   const handleJournalSave = async () => {
-    if (!journalTitle.trim() || !journalContent.trim()) {
-      Alert.alert('Error', 'Please fill in both title and content');
+    const titleError = validateJournalField('title', journalTitle);
+    const contentError = validateJournalField('content', journalContent);
+
+    setJournalTitleError(titleError);
+    setJournalContentError(contentError);
+
+    if (titleError || contentError) {
+      Alert.alert('Missing Information', 'Please fill in all required fields.');
       return;
     }
 
@@ -1320,15 +1358,22 @@ export default function HealthScreen() {
                     styles.journalFormInput,
                     {
                       backgroundColor: colors.surface,
-                      borderColor: colors.border,
+                      borderColor: journalTitleError
+                        ? colors.error
+                        : colors.border,
                       color: colors.text,
                     },
                   ]}
                   value={journalTitle}
-                  onChangeText={setJournalTitle}
+                  onChangeText={handleJournalTitleChange}
                   placeholder="Enter a title for your entry"
                   placeholderTextColor={colors.textTertiary}
                 />
+                {journalTitleError && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    {journalTitleError}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.journalFormGroup}>
@@ -1384,18 +1429,25 @@ export default function HealthScreen() {
                     styles.journalFormTextArea,
                     {
                       backgroundColor: colors.surface,
-                      borderColor: colors.border,
+                      borderColor: journalContentError
+                        ? colors.error
+                        : colors.border,
                       color: colors.text,
                     },
                   ]}
                   value={journalContent}
-                  onChangeText={setJournalContent}
+                  onChangeText={handleJournalContentChange}
                   placeholder="Write about your fasting experience, how you're feeling, challenges, victories..."
                   placeholderTextColor={colors.textTertiary}
                   multiline
                   numberOfLines={6}
                   textAlignVertical="top"
                 />
+                {journalContentError && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    {journalContentError}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.journalFormGroup}>
