@@ -9,6 +9,7 @@ import {
   useSubscription,
 } from '@/contexts/SubscriptionContext';
 import { storageService } from '@/utils/storage';
+import { initRevenueCat } from '@/rc-init';
 
 // Prevent the splash screen from auto-hiding until we know where to navigate.
 SplashScreen.preventAutoHideAsync();
@@ -16,6 +17,10 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutNav() {
   const { colors } = useTheme();
   const { isPremium, loading: subscriptionLoading } = useSubscription();
+
+  useEffect(() => {
+    initRevenueCat();
+  }, []);
 
   useEffect(() => {
     if (subscriptionLoading) {
