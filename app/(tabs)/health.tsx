@@ -20,6 +20,7 @@ import {
   Plus,
   Check,
   Clock,
+  Lock,
   Lightbulb,
   ChevronDown,
   ChevronUp,
@@ -184,20 +185,15 @@ export default function HealthScreen() {
   };
 
   const validateWeight = (value: string): string | null => {
-    const trimmed = value.trim();
-
-    // REQUIRED: user must enter a weight
-    if (trimmed === '') {
-      return 'Weight is required.';
-    }
+    if (value.trim() === '') return null; // Optional field
 
     // Format checks
     const validPattern = /^\d*\.?\d+$/; // digits with optional single decimal
-    if (!validPattern.test(trimmed)) {
+    if (!validPattern.test(value.trim())) {
       return 'Only numbers and a single decimal point are allowed.';
     }
 
-    const num = Number(trimmed);
+    const num = Number(value.trim());
     if (isNaN(num)) {
       return 'Please enter a valid number.';
     }
@@ -520,6 +516,34 @@ export default function HealthScreen() {
 
       {activeTab === 'metrics' ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {isLocked && (
+            <View
+              style={[
+                styles.lockedBanner,
+                {
+                  backgroundColor: colors.error + '20',
+                  borderColor: colors.error + '40',
+                },
+              ]}
+            >
+              <Lock size={24} color={colors.error} />
+              <View style={styles.lockedBannerTextContainer}>
+                <Text
+                  style={[styles.lockedBannerTitle, { color: colors.text }]}
+                >
+                  Metrics Locked
+                </Text>
+                <Text
+                  style={[
+                    styles.lockedBannerSubtitle,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Next input available in {timeUntilUnlock}.
+                </Text>
+              </View>
+            </View>
+          )}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Scale size={20} color={colors.primary} />
@@ -662,34 +686,25 @@ export default function HealthScreen() {
             style={[
               styles.saveButton,
               {
-                backgroundColor:
-                  isLocked || !!weightError ? colors.surface : colors.primary,
+                backgroundColor: weightError ? colors.surface : colors.primary,
               },
-              (isLocked || !!weightError) && {
+              weightError && {
                 borderColor: colors.border,
                 borderWidth: 1,
               },
+              isLocked && styles.disabledButton,
             ]}
             onPress={handleSaveRequest}
-            // The button is visually disabled but remains tappable to show alerts
+            disabled={isLocked}
           >
-            {isLocked ? (
-              <>
-                <Clock size={16} color={colors.textTertiary} />
-                <Text
-                  style={[
-                    styles.disabledSaveButtonText,
-                    { color: colors.textTertiary },
-                  ]}
-                >
-                  Locked until midnight ({timeUntilUnlock})
-                </Text>
-              </>
-            ) : (
-              <Text style={[styles.saveButtonText, { color: '#FFFFFF' }]}>
-                Save Today's Metrics
-              </Text>
-            )}
+            <Text
+              style={[
+                styles.saveButtonText,
+                { color: weightError ? colors.textSecondary : '#FFFFFF' },
+              ]}
+            >
+              Save Today's Metrics
+            </Text>
           </TouchableOpacity>
 
           {/* Fasting Tips Section */}
@@ -1587,10 +1602,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  disabledSaveButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   disabledButton: {
     opacity: 0.5,
   },
@@ -2024,5 +2035,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 12,
     fontWeight: '500',
+  },
+  lockedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  lockedBannerTextContainer: {
+    flex: 1,
+  },
+  lockedBannerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  lockedBannerSubtitle: {
+    fontSize: 14,
   },
 });
