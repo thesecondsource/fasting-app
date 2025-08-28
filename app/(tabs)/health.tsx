@@ -371,6 +371,51 @@ export default function HealthScreen() {
     setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
+  const isJournalFormDirty = (): boolean => {
+    if (editingEntry) {
+      // Check for changes when editing an existing entry
+      const titleChanged = journalTitle.trim() !== editingEntry.title;
+      const contentChanged = journalContent.trim() !== editingEntry.content;
+      const moodChanged = selectedMood !== editingEntry.mood;
+      const tagsChanged =
+        tags.length !== editingEntry.tags.length ||
+        !tags.every((tag) => editingEntry.tags.includes(tag)) ||
+        !editingEntry.tags.every((tag) => tags.includes(tag));
+      return titleChanged || contentChanged || moodChanged || tagsChanged;
+    } else {
+      // Check for any input when creating a new entry
+      return (
+        journalTitle.trim() !== '' ||
+        journalContent.trim() !== '' ||
+        tags.length > 0 ||
+        selectedMood !== 'okay' // Default mood is 'okay'
+      );
+    }
+  };
+
+  const handleCloseJournalModal = () => {
+    if (isJournalFormDirty()) {
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved changes. Are you sure you want to discard them?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              setShowJournalModal(false);
+              resetJournalForm();
+            },
+          },
+        ]
+      );
+    } else {
+      setShowJournalModal(false);
+      resetJournalForm();
+    }
+  };
+
   const filteredJournalEntries = journalEntries.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -894,7 +939,10 @@ export default function HealthScreen() {
                 styles.addJournalButton,
                 { backgroundColor: colors.primary },
               ]}
-              onPress={() => setShowJournalModal(true)}
+              onPress={() => {
+                resetJournalForm(); // Ensure a clean slate for new entries
+                setShowJournalModal(true);
+              }}
             >
               <Plus size={20} color="#FFFFFF" />
               <Text style={styles.addJournalButtonText}>New Entry</Text>
@@ -1242,10 +1290,7 @@ export default function HealthScreen() {
         visible={showJournalModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => {
-          setShowJournalModal(false);
-          resetJournalForm();
-        }}
+        onRequestClose={handleCloseJournalModal}
       >
         <View style={styles.journalModalOverlay}>
           <View
@@ -1258,12 +1303,7 @@ export default function HealthScreen() {
               <Text style={[styles.journalModalTitle, { color: colors.text }]}>
                 {editingEntry ? 'Edit Entry' : 'New Journal Entry'}
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowJournalModal(false);
-                  resetJournalForm();
-                }}
-              >
+              <TouchableOpacity onPress={handleCloseJournalModal}>
                 <X size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -1425,10 +1465,7 @@ export default function HealthScreen() {
                     borderColor: colors.border,
                   },
                 ]}
-                onPress={() => {
-                  setShowJournalModal(false);
-                  resetJournalForm();
-                }}
+                onPress={handleCloseJournalModal}
               >
                 <Text
                   style={[
