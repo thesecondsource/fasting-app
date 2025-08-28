@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { storageService } from '@/utils/storage';
 import { FastingSession } from '@/types';
+import { dateUtils } from '@/utils/dateUtils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PremiumBadge } from '@/components/PremiumBadge';
 
@@ -39,7 +40,6 @@ interface Achievement {
 
 export default function AchievementsScreen() {
   const { colors } = useTheme();
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [sessions, setSessions] = useState<FastingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -52,9 +52,7 @@ export default function AchievementsScreen() {
   const loadData = async () => {
     try {
       const fastingSessions = await storageService.getFastingSessions();
-
       setSessions(fastingSessions);
-      calculateAchievements(fastingSessions);
     } catch (error) {
       console.error('Error loading achievements data:', error);
     } finally {
@@ -62,18 +60,37 @@ export default function AchievementsScreen() {
     }
   };
 
-  const calculateAchievements = (sessions: FastingSession[]) => {
+  const achievements = useMemo(() => {
     const completedSessions = sessions.filter((s) => s.completed);
-    const currentStreak = calculateCurrentStreak(completedSessions);
-    const longestStreak = calculateLongestStreak(completedSessions);
+
+    const uniqueDays = [
+      ...new Set(
+        completedSessions.map((s) =>
+          dateUtils.getDayStart(new Date(s.startTime)).getTime()
+        )
+      ),
+    ].sort((a, b) => a - b);
+
+    let longestStreak = 0;
+    if (uniqueDays.length > 0) {
+      longestStreak = 1;
+      let tempStreak = 1;
+      for (let i = 1; i < uniqueDays.length; i++) {
+        const dayDiff =
+          (uniqueDays[i] - uniqueDays[i - 1]) / (1000 * 60 * 60 * 24);
+        if (dayDiff === 1) tempStreak++;
+        else tempStreak = 1;
+        longestStreak = Math.max(longestStreak, tempStreak);
+      }
+    }
+
     const totalFasts = completedSessions.length;
     const totalHours = completedSessions.reduce(
-      (sum, s) => sum + s.duration / 60,
+      (sum, s) => sum + s.duration / (1000 * 60 * 60),
       0
     );
 
-    const achievementsList: Achievement[] = [
-      // Streak Achievements
+    return [
       {
         id: 'first_fast',
         title: 'First Steps',
@@ -91,8 +108,8 @@ export default function AchievementsScreen() {
         description: 'Maintain a 3-day streak',
         icon: Flame,
         color: '#F59E0B',
-        unlocked: currentStreak >= 3,
-        progress: Math.min(currentStreak, 3),
+        unlocked: longestStreak >= 3,
+        progress: Math.min(longestStreak, 3),
         maxProgress: 3,
         category: 'streak',
       },
@@ -102,8 +119,8 @@ export default function AchievementsScreen() {
         description: 'Maintain a 7-day streak',
         icon: Flame,
         color: '#EF4444',
-        unlocked: currentStreak >= 7,
-        progress: Math.min(currentStreak, 7),
+        unlocked: longestStreak >= 7,
+        progress: Math.min(longestStreak, 7),
         maxProgress: 7,
         category: 'streak',
       },
@@ -113,13 +130,12 @@ export default function AchievementsScreen() {
         description: 'Maintain a 30-day streak',
         icon: Trophy,
         color: '#8B5CF6',
-        unlocked: currentStreak >= 30,
-        progress: Math.min(currentStreak, 30),
+        unlocked: longestStreak >= 30,
+        progress: Math.min(longestStreak, 30),
         maxProgress: 30,
         category: 'streak',
         isPremium: true,
       },
-      // Duration Achievements
       {
         id: 'hours_100',
         title: 'Century Club',
@@ -143,7 +159,6 @@ export default function AchievementsScreen() {
         category: 'duration',
         isPremium: true,
       },
-      // Consistency Achievements
       {
         id: 'fasts_10',
         title: 'Dedicated Faster',
@@ -180,77 +195,7 @@ export default function AchievementsScreen() {
         isPremium: true,
       },
     ];
-
-    setAchievements(achievementsList);
-  };
-
-  const calculateCurrentStreak = (sessions: FastingSession[]): number => {
-    if (sessions.length === 0) return 0;
-
-    const sortedSessions = [...sessions].sort(
-      (a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-    );
-
-    let streak = 0;
-    let currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-
-    for (const session of sortedSessions) {
-      const sessionDate = new Date(session.startTime);
-      sessionDate.setHours(0, 0, 0, 0);
-
-      const dayDiff = Math.floor(
-        (currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (dayDiff === streak) {
-        streak++;
-        currentDate = new Date(sessionDate);
-      } else if (dayDiff > streak) {
-        break;
-      }
-    }
-
-    return streak;
-  };
-
-  const calculateLongestStreak = (sessions: FastingSession[]): number => {
-    if (sessions.length === 0) return 0;
-
-    const sortedSessions = [...sessions].sort(
-      (a, b) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
-
-    let maxStreak = 0;
-    let currentStreak = 0;
-    let lastDate: Date | null = null;
-
-    for (const session of sortedSessions) {
-      const sessionDate = new Date(session.startTime);
-      sessionDate.setHours(0, 0, 0, 0);
-
-      if (!lastDate) {
-        currentStreak = 1;
-      } else {
-        const dayDiff = Math.floor(
-          (sessionDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-
-        if (dayDiff === 1) {
-          currentStreak++;
-        } else {
-          currentStreak = 1;
-        }
-      }
-
-      maxStreak = Math.max(maxStreak, currentStreak);
-      lastDate = sessionDate;
-    }
-
-    return maxStreak;
-  };
+  }, [sessions]);
 
   const categories = [
     { id: 'all', label: 'All', icon: Award },
@@ -286,7 +231,12 @@ export default function AchievementsScreen() {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* Make the categories row sticky: index 1 (after header) */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        stickyHeaderIndices={[1]}
+      >
+        {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
             Achievements
@@ -309,10 +259,14 @@ export default function AchievementsScreen() {
           </View>
         </View>
 
+        {/* Sticky categories row */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
+          style={[
+            styles.categoriesContainer,
+            { backgroundColor: colors.background },
+          ]}
           contentContainerStyle={styles.categoriesContent}
         >
           {categories.map((category) => {
@@ -352,6 +306,7 @@ export default function AchievementsScreen() {
           })}
         </ScrollView>
 
+        {/* Grid */}
         <View style={styles.achievementsGrid}>
           {filteredAchievements.map((achievement) => {
             const IconComponent = achievement.icon;
@@ -459,52 +414,28 @@ export default function AchievementsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 16,
-  },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, padding: 20 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { fontSize: 16 },
+  header: { alignItems: 'center', marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
+  subtitle: { fontSize: 16, fontWeight: '500', marginBottom: 16 },
   progressBar: {
     width: '100%',
     height: 8,
     borderRadius: 4,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
+  progressFill: { height: '100%', borderRadius: 4 },
+
+  // Filter bar (sticky)
   categoriesContainer: {
     marginBottom: 24,
+    height: 40,
+    zIndex: 10, // keeps it above content on iOS
   },
-  categoriesContent: {
-    paddingHorizontal: 4,
-    gap: 8,
-  },
+  categoriesContent: { paddingHorizontal: 4, gap: 8, alignItems: 'center' },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -514,21 +445,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
   },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  categoryText: { fontSize: 14, fontWeight: '500' },
+
   achievementsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
   },
   achievementCard: {
     width: '48%',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
+    marginBottom: 12,
     borderWidth: 1,
     position: 'relative',
   },
@@ -553,30 +482,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
+    height: 32,
   },
   achievementDescription: {
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 12,
     lineHeight: 16,
+    height: 48,
   },
-  progressContainer: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 4,
-  },
+  progressContainer: { width: '100%', alignItems: 'center', gap: 4 },
   progressBarSmall: {
     width: '100%',
     height: 4,
     borderRadius: 2,
     overflow: 'hidden',
   },
-  progressFillSmall: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
+  progressFillSmall: { height: '100%', borderRadius: 2 },
+  progressText: { fontSize: 10, fontWeight: '500' },
 });
