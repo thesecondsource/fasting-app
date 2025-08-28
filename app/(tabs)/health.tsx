@@ -184,17 +184,28 @@ export default function HealthScreen() {
   };
 
   const validateWeight = (value: string): string | null => {
-    if (value.trim() === '') {
-      return null; // Empty is valid (optional field)
+    const trimmed = value.trim();
+
+    // REQUIRED: user must enter a weight
+    if (trimmed === '') {
+      return 'Weight is required.';
     }
-    const num = Number(value);
+
+    // Format checks
+    const validPattern = /^\d*\.?\d+$/; // digits with optional single decimal
+    if (!validPattern.test(trimmed)) {
+      return 'Only numbers and a single decimal point are allowed.';
+    }
+
+    const num = Number(trimmed);
     if (isNaN(num)) {
       return 'Please enter a valid number.';
     }
     if (num <= 0) {
       return 'Weight must be a positive number.';
     }
-    return null;
+
+    return null; // valid
   };
 
   const handleWeightChange = (text: string) => {
